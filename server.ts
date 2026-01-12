@@ -63,8 +63,9 @@ app.all('/api/generations', adaptHandler(generationsHandler));
 app.all('/api/generations/*', adaptHandler(generationsHandler));
 app.all('/api/init-db', adaptHandler(initDbHandler));
 
-// Serve static files from dist folder
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve static files from dist folder (go up from dist-server to project root)
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
 
 // SPA fallback - serve index.html for all non-API routes
 app.get('*', (req, res) => {
@@ -72,7 +73,7 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Error handling middleware
@@ -85,7 +86,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 app.listen(PORT, () => {
   console.log(`🚀 DreamLens API server running on port ${PORT}`);
-  console.log(`📁 Serving static files from ./dist`);
+  console.log(`📁 Serving static files from ${distPath}`);
   console.log(`🔗 API endpoints available at /api/*`);
 });
 
