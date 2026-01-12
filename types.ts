@@ -1,25 +1,46 @@
 export enum TrendType {
+  // Editorial & High Fashion
   MAGAZINE = 'MAGAZINE',
+  PROFESSIONAL = 'PROFESSIONAL',
+  
+  // Cinema & Atmosphere
   COUPLE = 'COUPLE',
   RETRO_2K17 = 'RETRO_2K17',
-  PROFESSIONAL = 'PROFESSIONAL',
-  CUSTOM = 'CUSTOM',
-  // New Styles
-  OLD_MONEY = 'OLD_MONEY',
-  ETHEREAL = 'ETHEREAL',
-  OFFICE_SIREN = 'OFFICE_SIREN',
-  MINIMALIST = 'MINIMALIST',
-  NEON_CYBER = 'NEON_CYBER',
-  // Wave 2 additions
-  COQUETTE = 'COQUETTE',
   DARK_ACADEMIA = 'DARK_ACADEMIA',
+  
+  // Luxury & Status
+  OLD_MONEY = 'OLD_MONEY',
+  MOB_WIFE = 'MOB_WIFE',
+  A_LA_RUSSE = 'A_LA_RUSSE',
+  
+  // Modern Feminine
+  OFFICE_SIREN = 'OFFICE_SIREN',
+  COQUETTE = 'COQUETTE',
+  CLEAN_GIRL = 'CLEAN_GIRL',
+  
+  // Digital & Futuristic
+  CYBER_ANGEL = 'CYBER_ANGEL',
+  NEON_CYBER = 'NEON_CYBER',
+  
+  // Lifestyle & Vibe
+  SPORT_CHIC = 'SPORT_CHIC',
   Y2K_POP = 'Y2K_POP',
   COTTAGECORE = 'COTTAGECORE',
-  // Wave 3 (Super Trendy)
-  A_LA_RUSSE = 'A_LA_RUSSE',
-  MOB_WIFE = 'MOB_WIFE',
-  CYBER_ANGEL = 'CYBER_ANGEL',
-  SPORT_CHIC = 'SPORT_CHIC'
+  
+  // Art & Fantasy
+  ETHEREAL = 'ETHEREAL',
+  MINIMALIST = 'MINIMALIST',
+  
+  // NEW Wave 4 - 2025 Trends
+  TOMATO_GIRL = 'TOMATO_GIRL',
+  COASTAL_COWGIRL = 'COASTAL_COWGIRL',
+  QUIET_LUXURY = 'QUIET_LUXURY',
+  BALLETCORE = 'BALLETCORE',
+  GRUNGE_REVIVAL = 'GRUNGE_REVIVAL',
+  SOFT_GOTH = 'SOFT_GOTH',
+  
+  // Custom
+  CUSTOM = 'CUSTOM',
 }
 
 export enum AspectRatio {

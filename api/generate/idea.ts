@@ -58,27 +58,43 @@ export default async function handler(
       );
     }
 
-    // Inject Randomness to prevent duplicates - expanded themes for variety
+    // Trendy themes for young fashion-forward audience
     const themes = [
-      // Fashion & Style
-      'High Fashion Editorial', 'Streetwear Culture', 'Avant-Garde Couture', 'Minimalist Elegance',
-      // Sci-Fi & Future
-      'Cyberpunk Future', 'Biopunk Laboratory', 'Space Explorer', 'Post-Apocalyptic Survivor',
-      // Historical & Classic
-      'Renaissance Oil Painting', 'Vintage 1950s', 'Victorian Gothic', 'Ancient Greek Mythology',
-      // Fantasy & Magic
-      'Ethereal Fairy Tale', 'Dark Sorcerer', 'Steampunk Inventor', 'Nature Spirit',
-      // Cinema & Art
-      'Cinematic Movie Still', 'Film Noir Detective', 'Abstract Art Portrait', 'Wes Anderson Aesthetic',
-      // Atmosphere & Mood
-      'Neon Noir', 'Golden Hour Dream', 'Rainy Night Melancholy', 'Misty Mountain Wanderer',
-      // Power & Status
-      'Royal Aristocracy', 'Corporate Mogul', 'Underground Artist', 'Sports Champion'
+      // 2025 Hot Trends
+      'Mob Wife Aesthetic with leopard fur and gold chains',
+      'Office Siren with glasses and dangerous elegance',
+      'Italian Tomato Girl summer in terracotta linen',
+      'Quiet Luxury editorial with The Row aesthetics',
+      'A La Russe winter aristocrat with fur and pearls',
+      // Cinema Vibes
+      'Wong Kar-wai movie still with neon city lights',
+      'Sofia Coppola dreamy pastel romantic scene',
+      'Indie Sleaze party flash photography',
+      'Film Noir mystery in black and white',
+      // Fashion Editorial
+      'Dazed Magazine avant-garde cover shoot',
+      'Vogue Italia high fashion editorial',
+      'Balenciaga futuristic campaign',
+      'The Row minimalist campaign',
+      // Digital Future
+      'Y3K cyber angel with holographic halo',
+      'Liquid chrome Blade Runner portrait',
+      'Digital divinity with data streams',
+      // Lifestyle Aesthetics  
+      'Princess Diana off-duty gym moment',
+      'Y2K Paris Hilton era with rhinestones',
+      'Coastal cowgirl at golden hour beach',
+      'Cottagecore Pride & Prejudice scene',
+      // Art & Fantasy
+      'Ethereal elf queen with bioluminescent glow',
+      'Dark academia secret library portrait',
+      'Soft goth romantic with velvet and roses',
+      '90s grunge revival raw aesthetic'
     ];
     
     // Random modifiers for extra variety
-    const timeOfDay = ['at dawn', 'at golden hour', 'at twilight', 'at midnight', 'in morning mist'][Math.floor(Math.random() * 5)];
-    const mood = ['mysterious', 'powerful', 'serene', 'dramatic', 'ethereal'][Math.floor(Math.random() * 5)];
+    const timeOfDay = ['at golden hour', 'at blue hour', 'at sunset', 'late at night', 'in soft morning light'][Math.floor(Math.random() * 5)];
+    const mood = ['mysterious', 'powerful', 'dreamy', 'cinematic', 'ethereal'][Math.floor(Math.random() * 5)];
     
     const randomTheme = themes[Math.floor(Math.random() * themes.length)];
     const seed = Math.floor(Math.random() * 100000);
@@ -125,22 +141,22 @@ Good examples:
         }
       );
       
-      // Fallback ideas for when generation fails or is incomplete
+      // Fashion-forward fallback ideas for young audience
       const fallbacks = [
-        "Футуристический портрет в неоновом киберпространстве, окруженный цифровыми карпами кои, мягкое фиолетовое свечение.",
-        "Монарх пчелиного улья в золотых сотах, стекающий мед, макросъемка, высокая мода и глянцевая кожа.",
-        "Ретро-портрет в стиле 1920-х годов на поверхности Луны, черно-белый стиль с зерном и космическим светом.",
-        "Лесной дух в современном супермаркете, выбирающий магические зелья, контрастный неоновый свет витрин.",
-        "Портрет в стиле Густава Климта, золотые узоры на коже, элементы киберпанка и микросхемы в волосах.",
-        "Пилот гигантского робота отдыхает на закате, индустриальный пейзаж, теплый оранжевый свет и дым.",
-        "Маг в вагоне метро, читающий древний свиток, магическое зеленое свечение из книги, кинематографичный реализм.",
-        "Аристократ в заброшенной библиотеке, пыль в лучах света, атмосфера тайного общества и старых книг.",
-        "Путешественник во времени на крыше небоскреба, городские огни внизу, драматичный закат и ветер.",
-        "Алхимик в лаборатории с колбами и зельями, дым и цветные отражения, атмосфера научной фантастики.",
-        "Рыцарь в сияющих доспехах на фоне заката, драматичные облака и лучи света сквозь шлем.",
-        "Исследователь в джунглях древнего храма, золотой свет и тени от лиан, атмосфера приключений.",
-        "Музыкант на сцене джаз-клуба, синий дым и прожекторы, ностальгическая атмосфера 1960-х.",
-        "Астронавт на поверхности чужой планеты, отражение звезд в шлеме, космическое одиночество."
+        "Утро после вечеринки в Берлине: мятая шелковая рубашка, растрепанные волосы, мягкий свет через грязное окно лофта.",
+        "Редактор Vogue на кофе-брейке в Милане: oversized кашемир, минимум макияжа, уверенный взгляд через стекло кофейни.",
+        "Mob wife выходит из черного Escalade: леопардовая шуба, массивные золотые серьги, дерзкий взгляд на папарацци.",
+        "Кинематографичный кадр в такси ночного Токио: неоновые отражения на лице, меланхоличная романтика Wong Kar-wai.",
+        "Русская аристократка в заснеженном лесу: винтажный мех, жемчуг, красные губы на фоне берез и снега.",
+        "Office siren после работы: очки на кончике носа, расстегнутая блузка, опасная интеллектуальная энергия.",
+        "Итальянское лето на террасе: терракотовый лён, золотой загар, бокал просекко и лимонное дерево.",
+        "Цифровой ангел в белом void-пространстве: голографическое гало из данных, стеклянная кожа, Y3K эстетика.",
+        "Последний танец в заброшенном особняке: бархатное платье, свечи, романтический gothic-декаданс.",
+        "Indie sleaze 2010: прямая вспышка, размазанная подводка, блестки и шампанское в 4 утра.",
+        "Quiet luxury момент: кашемир oatmeal цвета, чистая кожа, никаких логотипов, озеро Комо за окном.",
+        "Балерина после репетиции: пуанты и ribbons, уставшая грация, пыль в луче света из окна студии.",
+        "Coastal cowgirl на закате: ковбойская шляпа, развевающееся платье, океан и золотое солнце.",
+        "Grunge revival: фланель, мешковатые джинсы, raw энергия и полное безразличие к камере."
       ];
 
       let text = geminiResponse.text?.trim();
@@ -195,18 +211,18 @@ Good examples:
         userId: user.id?.substring(0, 8) + '...',
       });
       
-      // Fallback ideas (last resort if all API keys fail)
+      // Fashion-forward fallback ideas (last resort if all API keys fail)
       const fallbacks = [
-        "Футуристический портрет в неоновом киберпространстве, окруженный цифровыми карпами кои, мягкое фиолетовое свечение.",
-        "Монарх пчелиного улья в золотых сотах, стекающий мед, макросъемка, высокая мода и глянцевая кожа.",
-        "Ретро-портрет в стиле 1920-х годов на поверхности Луны, черно-белый стиль с зерном и космическим светом.",
-        "Лесной дух в современном супермаркете, выбирающий магические зелья, контрастный неоновый свет витрин.",
-        "Портрет в стиле Густава Климта, золотые узоры на коже, элементы киберпанка и микросхемы в волосах.",
-        "Пилот гигантского робота отдыхает на закате, индустриальный пейзаж, теплый оранжевый свет и дым.",
-        "Маг в вагоне метро, читающий древний свиток, магическое зеленое свечение из книги, кинематографичный реализм.",
-        "Аристократ в заброшенной библиотеке, пыль в лучах света, атмосфера тайного общества и старых книг.",
-        "Путешественник во времени на крыше небоскреба, городские огни внизу, драматичный закат и ветер.",
-        "Алхимик в лаборатории с колбами и зельями, дым и цветные отражения, атмосфера научной фантастики."
+        "Кинематографичный портрет в ночном такси: неоновые огни отражаются на лице, Wong Kar-wai меланхолия.",
+        "Mob wife в леопардовой шубе на фоне мраморной лестницы: золотые серьги, красные ногти, дерзкий взгляд.",
+        "Office siren на закате в пустом офисе: очки, строгий пучок, опасная интеллектуальная красота.",
+        "Итальянское лето на Амальфи: лён терракотового цвета, золотой загар, лимоны и солнце.",
+        "Русская зима в меховой шапке: красные губы, жемчуг, заснеженные берёзы на фоне.",
+        "Coquette эстетика: шёлковые ленты, розовая дымка, мечтательный взгляд Sofia Coppola.",
+        "Y3K ангел в белом пространстве: голографическое гало, стеклянная кожа, цифровое совершенство.",
+        "Indie sleaze вечеринка: прямая вспышка, блёстки, 3 утра и шампанское.",
+        "Dark academia в старой библиотеке: твид, свечи, пыль в лучах света, тайное общество.",
+        "Quiet luxury момент: кашемир без логотипов, озеро Комо, генерационное богатство."
       ];
       
       const fallbackIdea = fallbacks[Math.floor(Math.random() * fallbacks.length)];
