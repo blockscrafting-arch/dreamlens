@@ -207,7 +207,7 @@ export const UploadStep: React.FC = () => {
       {/* Premium Header */}
       <div className="mb-8 text-center">
         <h2 
-          className="text-4xl md:text-5xl font-serif font-bold mb-4"
+          className="text-3xl md:text-5xl font-serif font-bold mb-4"
           style={{ color: 'var(--tg-theme-text-color, #000000)' }}
         >
           Загрузите фото

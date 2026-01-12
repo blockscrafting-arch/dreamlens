@@ -63,7 +63,6 @@ export const TelegramLayout: React.FC<TelegramLayoutProps> = ({
           </h1>
           <div className="flex items-center gap-2">
             <TokenBalance />
-            <DailyWheel />
           </div>
         </div>
       </header>
