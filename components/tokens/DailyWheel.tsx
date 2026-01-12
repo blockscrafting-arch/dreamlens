@@ -4,6 +4,63 @@ import { useToast } from '../../context/ToastContext';
 import { useTelegramHaptics } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
 
+// Helper to calculate time until midnight (next bonus)
+const getTimeUntilMidnight = (): { hours: number; minutes: number; seconds: number } => {
+  const now = new Date();
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+  
+  const diff = midnight.getTime() - now.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  
+  return { hours, minutes, seconds };
+};
+
+// Countdown Timer Component
+const CountdownTimer: React.FC = () => {
+  const [timeLeft, setTimeLeft] = useState(getTimeUntilMidnight());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(getTimeUntilMidnight());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatNumber = (n: number) => n.toString().padStart(2, '0');
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="flex items-center gap-1 text-xs font-mono">
+        <span 
+          className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-bold animate-countdown-tick"
+          style={{ minWidth: '24px', textAlign: 'center' }}
+        >
+          {formatNumber(timeLeft.hours)}
+        </span>
+        <span className="text-gray-400">:</span>
+        <span 
+          className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-bold"
+          style={{ minWidth: '24px', textAlign: 'center' }}
+        >
+          {formatNumber(timeLeft.minutes)}
+        </span>
+        <span className="text-gray-400">:</span>
+        <span 
+          className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-bold"
+          style={{ minWidth: '24px', textAlign: 'center' }}
+        >
+          {formatNumber(timeLeft.seconds)}
+        </span>
+      </div>
+      <span className="text-[10px] text-gray-400">до нового спина</span>
+    </div>
+  );
+};
+
 export const DailyWheel: React.FC = () => {
   const { tokens, claimDailyBonus, refresh } = useTokens();
   const { showToast } = useToast();
@@ -265,7 +322,7 @@ export const DailyWheel: React.FC = () => {
           transition-all duration-300
           ${canSpin && !isSpinning
             ? 'cursor-grab active:cursor-grabbing'
-            : 'cursor-not-allowed opacity-60'
+            : canSpin ? '' : 'cursor-default'
           }
           ${isDragging ? 'scale-105' : ''}
         `}
@@ -275,7 +332,12 @@ export const DailyWheel: React.FC = () => {
         <div className="relative w-32 h-32 md:w-40 md:h-40">
           {/* Outer glow effect when can spin */}
           {canSpin && !isSpinning && (
-            <div className="absolute -inset-2 bg-gradient-to-r from-brand-400 via-purple-400 to-pink-400 rounded-full blur-lg opacity-40 animate-pulse"></div>
+            <div className="absolute -inset-2 bg-gradient-to-r from-brand-400 via-purple-400 to-pink-400 rounded-full blur-lg opacity-50 animate-glow-pulse"></div>
+          )}
+          
+          {/* Subtle glow when waiting for next spin */}
+          {!canSpin && !isSpinning && (
+            <div className="absolute -inset-1 bg-gradient-to-r from-gray-300 to-gray-400 rounded-full blur-md opacity-20"></div>
           )}
           
           {/* Pointer */}
@@ -386,9 +448,17 @@ export const DailyWheel: React.FC = () => {
               </span>
             </div>
           ) : (
-            <span className="text-sm font-semibold text-gray-500">
-              Уже получено ✓
-            </span>
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-semibold text-gray-600">
+                  Получено сегодня
+                </span>
+              </div>
+              <CountdownTimer />
+            </div>
           )}
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useWizard } from '../../context/WizardContext';
 import { useToast } from '../../context/ToastContext';
 import { TrendType } from '../../types';
@@ -7,6 +7,170 @@ import { rateLimiter } from '../../utils/rateLimit';
 import { apiRequest } from '../../lib/api';
 import { useTelegramMainButton, useTelegramHaptics } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
+
+// Style card component with enhanced animations
+interface StyleCardProps {
+  trend: {
+    id: TrendType;
+    title: string;
+    subtitle: string;
+    desc: string;
+    emoji: string;
+    tags: string[];
+    gradient: string;
+    textColor: string;
+    isHot?: boolean;
+  };
+  isSelected: boolean;
+  onClick: () => void;
+  animationDelay: number;
+}
+
+const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, animationDelay }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleClick = () => {
+    setShowConfetti(true);
+    onClick();
+    // Reset confetti after animation
+    setTimeout(() => setShowConfetti(false), 600);
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`
+        relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 cursor-pointer 
+        transition-all duration-300 ease-out h-44 sm:h-52 flex flex-col justify-between 
+        animate-fade-in-up group
+        ${trend.gradient}
+        ${isSelected 
+          ? 'ring-2 ring-white/60 shadow-xl scale-[1.02] z-10' 
+          : 'hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]'
+        }
+      `}
+      style={{
+        animationDelay: `${animationDelay}ms`,
+        animationFillMode: 'backwards',
+      }}
+    >
+      {/* Shimmer overlay for hot items */}
+      {trend.isHot && !isSelected && (
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+      )}
+
+      {/* Hover glow effect */}
+      <div 
+        className={`
+          absolute inset-0 opacity-0 transition-opacity duration-300 pointer-events-none
+          ${isHovered && !isSelected ? 'opacity-100' : ''}
+        `}
+        style={{
+          background: 'radial-gradient(circle at center, rgba(255,255,255,0.15) 0%, transparent 70%)',
+        }}
+      />
+
+      {/* Selection pulse effect */}
+      {isSelected && (
+        <div className="absolute inset-0 animate-pulse-slow bg-white/5 pointer-events-none" />
+      )}
+
+      {/* Confetti particles on selection */}
+      {showConfetti && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1.5 h-1.5 rounded-full animate-confetti-burst"
+              style={{
+                backgroundColor: ['#fff', '#ffd700', '#ff69b4', '#00ff88'][i % 4],
+                left: '50%',
+                top: '50%',
+                '--angle': `${i * 45}deg`,
+                '--distance': `${40 + Math.random() * 30}px`,
+                animationDelay: `${i * 30}ms`,
+              } as React.CSSProperties}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Card content */}
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1">
+            <h4 className={`text-sm sm:text-lg font-serif font-bold mb-1 truncate ${trend.textColor}`}>
+              {trend.title}
+            </h4>
+            <p className={`text-xs uppercase tracking-wider opacity-75 ${trend.textColor}`}>
+              {trend.subtitle}
+            </p>
+          </div>
+          <span 
+            className={`
+              text-2xl sm:text-3xl ml-2 transition-transform duration-300
+              ${isHovered ? 'scale-110 rotate-12' : ''}
+              ${isSelected ? 'animate-bounce' : ''}
+            `}
+          >
+            {trend.emoji}
+          </span>
+        </div>
+        
+        <p className={`text-xs sm:text-sm mb-2 leading-tight opacity-80 ${trend.textColor}`}>
+          {trend.desc}
+        </p>
+      </div>
+
+      {/* Tags section */}
+      <div className="relative z-10 mt-auto">
+        {isSelected ? (
+          <div className={`flex items-center gap-1.5 text-xs font-semibold ${trend.textColor}`}>
+            <svg className="w-4 h-4 animate-pop-in" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Выбрано
+          </div>
+        ) : (
+          <div className={`
+            flex flex-wrap gap-1 transition-all duration-300
+            ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-60 translate-y-1'}
+          `}>
+            {trend.tags.slice(0, 3).map((tag, idx) => (
+              <span
+                key={idx}
+                className={`
+                  text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full 
+                  bg-white/20 backdrop-blur-sm ${trend.textColor}
+                  transition-all duration-200
+                `}
+                style={{
+                  transitionDelay: `${idx * 50}ms`,
+                }}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Hot badge */}
+      {trend.isHot && (
+        <div className="absolute -top-1 -right-1 w-16 h-16 overflow-hidden">
+          <div className="absolute top-3 -right-4 w-20 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[8px] font-bold py-0.5 text-center transform rotate-45 shadow-sm">
+            HOT
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const TrendStep: React.FC = () => {
   const { config, updateConfig, setStep } = useWizard();
@@ -74,7 +238,7 @@ export const TrendStep: React.FC = () => {
       setTimeout(() => setStep(3), 150);
   };
 
-  // NEW: Added 'tags' for visual clarity (Lighting, Texture, Color)
+  // Trends with tags and visual properties
   const trends = {
     [TrendType.MAGAZINE]: {
       id: TrendType.MAGAZINE,
@@ -84,7 +248,8 @@ export const TrendStep: React.FC = () => {
       emoji: "📸",
       tags: ["Жесткая вспышка", "Контраст", "Резкость"],
       gradient: "bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white",
-      textColor: "text-white"
+      textColor: "text-white",
+      isHot: false,
     },
     [TrendType.A_LA_RUSSE]: {
         id: TrendType.A_LA_RUSSE,
@@ -94,7 +259,8 @@ export const TrendStep: React.FC = () => {
         emoji: "❄️",
         tags: ["Холодный тон", "Мягкий фокус", "Дневной свет"],
         gradient: "bg-gradient-to-br from-red-800 via-red-900 to-black text-white",
-        textColor: "text-white"
+        textColor: "text-white",
+        isHot: true,
     },
     [TrendType.MOB_WIFE]: {
         id: TrendType.MOB_WIFE,
@@ -104,7 +270,8 @@ export const TrendStep: React.FC = () => {
         emoji: "🐆",
         tags: ["Теплый тон", "Винтажная вспышка", "Текстура"],
         gradient: "bg-gradient-to-br from-yellow-700 via-yellow-800 to-amber-900 text-amber-50",
-        textColor: "text-amber-50"
+        textColor: "text-amber-50",
+        isHot: true,
     },
     [TrendType.SPORT_CHIC]: {
         id: TrendType.SPORT_CHIC,
@@ -114,7 +281,8 @@ export const TrendStep: React.FC = () => {
         emoji: "🧢",
         tags: ["Смаз в движении", "Естественность", "Живой кадр"],
         gradient: "bg-gradient-to-br from-emerald-600 via-green-700 to-emerald-800 text-white",
-        textColor: "text-white"
+        textColor: "text-white",
+        isHot: false,
     },
     [TrendType.CYBER_ANGEL]: {
         id: TrendType.CYBER_ANGEL,
@@ -124,7 +292,8 @@ export const TrendStep: React.FC = () => {
         emoji: "🪽",
         tags: ["Голография", "Стеклянная кожа", "Сияние"],
         gradient: "bg-gradient-to-br from-blue-50 via-white to-blue-100 text-blue-900 border border-blue-200",
-        textColor: "text-blue-900"
+        textColor: "text-blue-900",
+        isHot: true,
     },
     [TrendType.COUPLE]: {
       id: TrendType.COUPLE,
@@ -134,7 +303,8 @@ export const TrendStep: React.FC = () => {
       emoji: "🎬",
       tags: ["Боке", "Неон", "Атмосфера"],
       gradient: "bg-gradient-to-br from-rose-500 via-red-600 to-rose-700 text-white",
-      textColor: "text-white"
+      textColor: "text-white",
+      isHot: false,
     },
     [TrendType.RETRO_2K17]: {
       id: TrendType.RETRO_2K17,
@@ -144,7 +314,8 @@ export const TrendStep: React.FC = () => {
       emoji: "📼",
       tags: ["Прямая вспышка", "Зернистость", "Небрежность"],
       gradient: "bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 text-white",
-      textColor: "text-white"
+      textColor: "text-white",
+      isHot: false,
     },
     [TrendType.OFFICE_SIREN]: {
       id: TrendType.OFFICE_SIREN,
@@ -154,7 +325,8 @@ export const TrendStep: React.FC = () => {
       emoji: "👓",
       tags: ["Холодный свет", "Резкость", "Минимализм"],
       gradient: "bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 text-slate-900",
-      textColor: "text-slate-900"
+      textColor: "text-slate-900",
+      isHot: true,
     },
     [TrendType.OLD_MONEY]: {
       id: TrendType.OLD_MONEY,
@@ -164,7 +336,8 @@ export const TrendStep: React.FC = () => {
       emoji: "🥂",
       tags: ["Пленочное зерно", "Теплое солнце", "Мягкость"],
       gradient: "bg-gradient-to-br from-orange-50 via-amber-100 to-amber-200 text-amber-900",
-      textColor: "text-amber-900"
+      textColor: "text-amber-900",
+      isHot: false,
     },
     [TrendType.MINIMALIST]: {
       id: TrendType.MINIMALIST,
@@ -174,7 +347,8 @@ export const TrendStep: React.FC = () => {
       emoji: "☁️",
       tags: ["Без макияжа", "Текстура", "Студия"],
       gradient: "bg-gradient-to-br from-white via-gray-100 to-gray-200 text-gray-800 border border-gray-200",
-      textColor: "text-gray-800"
+      textColor: "text-gray-800",
+      isHot: false,
     },
     [TrendType.ETHEREAL]: {
       id: TrendType.ETHEREAL,
@@ -184,7 +358,8 @@ export const TrendStep: React.FC = () => {
       emoji: "🦋",
       tags: ["Свечение", "Искры", "Перламутр"],
       gradient: "bg-gradient-to-br from-teal-200 via-emerald-200 to-teal-300 text-teal-900",
-      textColor: "text-teal-900"
+      textColor: "text-teal-900",
+      isHot: false,
     },
     [TrendType.NEON_CYBER]: {
       id: TrendType.NEON_CYBER,
@@ -194,7 +369,8 @@ export const TrendStep: React.FC = () => {
       emoji: "💿",
       tags: ["3D Рендер", "Отражения", "Неон"],
       gradient: "bg-gradient-to-br from-fuchsia-700 via-purple-800 to-indigo-900 text-white",
-      textColor: "text-white"
+      textColor: "text-white",
+      isHot: false,
     },
     [TrendType.PROFESSIONAL]: {
       id: TrendType.PROFESSIONAL,
@@ -204,7 +380,8 @@ export const TrendStep: React.FC = () => {
       emoji: "💼",
       tags: ["Свет Рембрандта", "Глубина", "Чистота"],
       gradient: "bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 text-white",
-      textColor: "text-white"
+      textColor: "text-white",
+      isHot: false,
     },
     [TrendType.COQUETTE]: {
       id: TrendType.COQUETTE,
@@ -214,7 +391,8 @@ export const TrendStep: React.FC = () => {
       emoji: "🎀",
       tags: ["Дымка", "Пастель", "Нежность"],
       gradient: "bg-gradient-to-br from-pink-200 via-rose-200 to-pink-300 text-rose-900",
-      textColor: "text-rose-900"
+      textColor: "text-rose-900",
+      isHot: false,
     },
     [TrendType.DARK_ACADEMIA]: {
       id: TrendType.DARK_ACADEMIA,
@@ -224,7 +402,8 @@ export const TrendStep: React.FC = () => {
       emoji: "📚",
       tags: ["Темный", "Свечи", "Твид"],
       gradient: "bg-gradient-to-br from-stone-800 via-stone-900 to-black text-stone-200",
-      textColor: "text-stone-200"
+      textColor: "text-stone-200",
+      isHot: false,
     },
     [TrendType.Y2K_POP]: {
       id: TrendType.Y2K_POP,
@@ -234,7 +413,8 @@ export const TrendStep: React.FC = () => {
       emoji: "💄",
       tags: ["Пересвет", "Розовый тинт", "Глянец"],
       gradient: "bg-gradient-to-br from-pink-500 via-fuchsia-500 to-purple-600 text-white",
-      textColor: "text-white"
+      textColor: "text-white",
+      isHot: false,
     },
     [TrendType.COTTAGECORE]: {
       id: TrendType.COTTAGECORE,
@@ -244,7 +424,8 @@ export const TrendStep: React.FC = () => {
       emoji: "🌻",
       tags: ["Золотой час", "Масло", "Природа"],
       gradient: "bg-gradient-to-br from-lime-200 via-green-200 to-green-300 text-green-900",
-      textColor: "text-green-900"
+      textColor: "text-green-900",
+      isHot: false,
     }
   };
 
@@ -338,49 +519,13 @@ export const TrendStep: React.FC = () => {
                 
                 <div className="grid grid-cols-2 gap-3 sm:gap-6">
                     {category.items.filter(Boolean).map((trend: any, itemIdx: number) => (
-                        <div
+                        <StyleCard
                             key={trend.id}
+                            trend={trend}
+                            isSelected={config.trend === trend.id}
                             onClick={() => handleSelectTrend(trend.id)}
-                            className={`relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 cursor-pointer transition-all duration-300 ease-out h-40 sm:h-48 flex flex-col justify-between animate-fade-in-up ${trend.gradient} ${
-                              config.trend === trend.id 
-                                ? 'ring-2 ring-white/50 shadow-lg scale-[1.02]' 
-                                : 'hover:shadow-md hover:scale-[1.01] active:scale-[0.98]'
-                            }`}
-                            style={{
-                              animationDelay: `${(catIdx * 100) + (itemIdx * 50)}ms`,
-                              animationFillMode: 'backwards',
-                            }}
-                        >
-                            <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                    <h4 
-                                      className={`text-sm sm:text-lg font-serif font-bold mb-1 truncate ${trend.textColor}`}
-                                    >
-                                        {trend.title}
-                                    </h4>
-                                    <p 
-                                      className={`text-xs uppercase tracking-wider opacity-75 ${trend.textColor}`}
-                                    >
-                                        {trend.subtitle}
-                                    </p>
-                                </div>
-                                <span className="text-2xl sm:text-3xl ml-2">{trend.emoji}</span>
-                            </div>
-                            <p 
-                              className={`text-sm mb-2 leading-tight opacity-80 ${trend.textColor}`}
-                            >
-                                {trend.desc}
-                            </p>
-                            {config.trend === trend.id && (
-                                <div className={`flex items-center gap-1.5 text-xs font-semibold mt-auto ${trend.textColor}`}
-                                >
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                    Выбрано
-                                </div>
-                            )}
-                        </div>
+                            animationDelay={(catIdx * 100) + (itemIdx * 50)}
+                        />
                     ))}
                 </div>
             </div>

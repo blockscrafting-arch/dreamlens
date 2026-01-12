@@ -5,6 +5,7 @@ import { ToastProvider, useToast } from '@/context/ToastContext';
 import { LegalModal } from '@/components/ui/LegalModal';
 import { TokenBalance } from '@/components/tokens/TokenBalance';
 import { DailyWheel } from '@/components/tokens/DailyWheel';
+import { ComeBackReminder } from '@/components/tokens/ComeBackReminder';
 import { MobileMenu } from '@/components/ui/MobileMenu';
 import { initTelegramWebApp, getTelegramWebApp, isTelegramWebApp } from '@/lib/telegram';
 import { TelegramLayout } from '@/components/telegram/TelegramLayout';
@@ -406,6 +407,8 @@ const AppContent: React.FC<{
             onBack={() => setTelegramScreen('tabs')}
           />
         )}
+        {/* Come Back Reminder for Telegram */}
+        <ComeBackReminder onBuyTokens={() => setTelegramScreen('pricing')} />
       </>
     );
   }
@@ -489,6 +492,9 @@ const AppContent: React.FC<{
         <main>
           <WizardContent />
         </main>
+
+        {/* Come Back Reminder - shown when tokens are 0 */}
+        <ComeBackReminder onBuyTokens={() => window.location.href = '/pricing'} />
 
         {/* Footer */}
         <footer className="glass-sm py-12 mt-12 border-t border-white/20 bg-gradient-to-b from-white/50 to-cream/50">

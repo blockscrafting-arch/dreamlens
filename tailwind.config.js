@@ -134,6 +134,10 @@ export default {
         'slide-up': 'slideUp 0.4s cubic-bezier(0.2, 0, 0.2, 1) forwards',
         'slide-in-right': 'slideInRight 0.4s cubic-bezier(0.2, 0, 0.2, 1) forwards',
         'slide-in-left': 'slideInLeft 0.4s cubic-bezier(0.2, 0, 0.2, 1) forwards',
+        'confetti-burst': 'confettiBurst 0.6s cubic-bezier(0.2, 0, 0.2, 1) forwards',
+        'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+        'countdown-tick': 'countdownTick 1s ease-in-out infinite',
+        'wiggle': 'wiggle 0.5s ease-in-out',
       },
       keyframes: {
         float: {
@@ -189,6 +193,33 @@ export default {
         slideInLeft: {
           '0%': { opacity: '0', transform: 'translateX(-24px)' },
           '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        confettiBurst: {
+          '0%': { 
+            opacity: '1', 
+            transform: 'translate(-50%, -50%) rotate(0deg) translateY(0)' 
+          },
+          '100%': { 
+            opacity: '0', 
+            transform: 'translate(-50%, -50%) rotate(var(--angle, 0deg)) translateY(var(--distance, 50px))' 
+          },
+        },
+        glowPulse: {
+          '0%, 100%': { 
+            boxShadow: '0 0 5px rgba(245, 62, 134, 0.3), 0 0 10px rgba(245, 62, 134, 0.2)' 
+          },
+          '50%': { 
+            boxShadow: '0 0 15px rgba(245, 62, 134, 0.5), 0 0 30px rgba(245, 62, 134, 0.3)' 
+          },
+        },
+        countdownTick: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.05)' },
+        },
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '25%': { transform: 'rotate(-5deg)' },
+          '75%': { transform: 'rotate(5deg)' },
         },
       },
       backgroundImage: {
