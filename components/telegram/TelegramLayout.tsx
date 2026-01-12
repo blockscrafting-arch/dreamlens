@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BottomNav, TabType } from './BottomNav';
 import { TokenBalance } from '../tokens/TokenBalance';
-import { DailyWheel } from '../tokens/DailyWheel';
+import { DailyWheelButton } from '../tokens/DailyWheelButton';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
 
@@ -63,6 +63,7 @@ export const TelegramLayout: React.FC<TelegramLayoutProps> = ({
           </h1>
           <div className="flex items-center gap-2">
             <TokenBalance />
+            <DailyWheelButton />
           </div>
         </div>
       </header>
