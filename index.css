@@ -255,6 +255,367 @@ body[data-telegram-theme] {
   animation: gradient-shift 4s ease infinite;
 }
 
+/* ========== STYLE TRANSITION ANIMATIONS ========== */
+
+/* Snowfall Animation for A LA RUSSE */
+@keyframes snowfall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0.3;
+  }
+}
+
+.animate-snowfall {
+  animation: snowfall 3s linear forwards;
+}
+
+/* Sparkle Float for Gold elements */
+@keyframes sparkle-float {
+  0% {
+    transform: translateY(0) scale(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-30px) scale(1);
+  }
+  100% {
+    transform: translateY(-50px) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-sparkle-float {
+  animation: sparkle-float 2s ease-out forwards;
+}
+
+/* Digital Rise for Cyber effects */
+@keyframes digital-rise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.animate-digital-rise {
+  animation: digital-rise 3s ease-out forwards;
+}
+
+/* Sun Ray Animation */
+@keyframes sun-ray {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -100%) rotate(var(--rotation, 0deg)) scaleY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate(-50%, -100%) rotate(var(--rotation, 0deg)) scaleY(1);
+  }
+  100% {
+    opacity: 0.4;
+    transform: translate(-50%, -100%) rotate(var(--rotation, 0deg)) scaleY(1.2);
+  }
+}
+
+.animate-sun-ray {
+  animation: sun-ray 1.5s ease-out forwards;
+}
+
+/* Dust Float */
+@keyframes dust-float {
+  0%, 100% {
+    transform: translate(0, 0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(10px, -10px);
+    opacity: 0.7;
+  }
+}
+
+.animate-dust-float {
+  animation: dust-float 4s ease-in-out infinite;
+}
+
+/* Petal Fall for Coquette */
+@keyframes petal-fall {
+  0% {
+    transform: translateY(0) rotate(0deg) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg) translateX(50px);
+    opacity: 0.3;
+  }
+}
+
+.animate-petal-fall {
+  animation: petal-fall 4s ease-in-out forwards;
+}
+
+/* Bokeh Pulse */
+@keyframes bokeh-pulse {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-bokeh-pulse {
+  animation: bokeh-pulse 2s ease-out forwards;
+}
+
+/* Leaf Fall for Cottagecore */
+@keyframes leaf-fall {
+  0% {
+    transform: translateY(0) rotate(0deg) translateX(0);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(25vh) rotate(90deg) translateX(-20px);
+  }
+  50% {
+    transform: translateY(50vh) rotate(180deg) translateX(20px);
+  }
+  75% {
+    transform: translateY(75vh) rotate(270deg) translateX(-10px);
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg) translateX(0);
+    opacity: 0.3;
+  }
+}
+
+.animate-leaf-fall {
+  animation: leaf-fall 5s ease-in-out forwards;
+}
+
+/* Camera Flash */
+@keyframes camera-flash {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-camera-flash {
+  animation: camera-flash 0.8s ease-out forwards;
+}
+
+/* Flash Burst */
+@keyframes flash-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(100);
+    opacity: 0;
+  }
+}
+
+.animate-flash-burst {
+  animation: flash-burst 0.6s ease-out forwards;
+}
+
+/* Candle Appear */
+@keyframes candle-appear {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-candle-appear {
+  animation: candle-appear 0.5s ease-out forwards;
+}
+
+/* Flame Flicker */
+@keyframes flame-flicker {
+  0%, 100% {
+    transform: scaleY(1) scaleX(1);
+    opacity: 1;
+  }
+  25% {
+    transform: scaleY(1.1) scaleX(0.9);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scaleY(0.9) scaleX(1.1);
+    opacity: 1;
+  }
+  75% {
+    transform: scaleY(1.05) scaleX(0.95);
+    opacity: 0.95;
+  }
+}
+
+.animate-flame-flicker {
+  animation: flame-flicker 0.5s ease-in-out infinite;
+}
+
+/* Ribbon Dance for Balletcore */
+@keyframes ribbon-dance {
+  0% {
+    transform: rotate(-15deg) scaleY(0);
+    opacity: 0;
+  }
+  50% {
+    transform: rotate(15deg) scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(-10deg) scaleY(1);
+    opacity: 0.8;
+  }
+}
+
+.animate-ribbon-dance {
+  animation: ribbon-dance 2s ease-in-out forwards;
+}
+
+/* Spot Appear for Leopard */
+@keyframes spot-appear {
+  0% {
+    transform: scale(0) rotate(var(--rotation, 0deg));
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(var(--rotation, 0deg));
+    opacity: 1;
+  }
+}
+
+.animate-spot-appear {
+  animation: spot-appear 0.5s ease-out forwards;
+}
+
+/* Glasses Appear */
+@keyframes glasses-appear {
+  0% {
+    transform: translateY(-50px) scale(0.5);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(10px) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-glasses-appear {
+  animation: glasses-appear 0.8s ease-out forwards;
+}
+
+/* Lens Shine */
+@keyframes lens-shine {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+.animate-lens-shine {
+  animation: lens-shine 1s ease-in-out forwards;
+}
+
+/* Shine Sweep */
+@keyframes shine-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shine-sweep {
+  animation: shine-sweep 1.5s ease-in-out forwards;
+}
+
+/* Wave Animation */
+@keyframes wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-wave {
+  animation: wave 3s ease-in-out infinite;
+}
+
+/* Transition Overlay */
+@keyframes transition-overlay {
+  0% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.animate-transition-overlay {
+  animation: transition-overlay 1.5s ease-in-out forwards;
+}
+
+/* ========== END STYLE TRANSITION ANIMATIONS ========== */
+
 /* Reduced Motion Support for Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -283,7 +644,26 @@ body[data-telegram-theme] {
   .animate-wiggle,
   .animate-float-glow,
   .animate-sparkle,
-  .animate-gradient-text {
+  .animate-gradient-text,
+  .animate-snowfall,
+  .animate-sparkle-float,
+  .animate-digital-rise,
+  .animate-sun-ray,
+  .animate-dust-float,
+  .animate-petal-fall,
+  .animate-bokeh-pulse,
+  .animate-leaf-fall,
+  .animate-camera-flash,
+  .animate-flash-burst,
+  .animate-candle-appear,
+  .animate-flame-flicker,
+  .animate-ribbon-dance,
+  .animate-spot-appear,
+  .animate-glasses-appear,
+  .animate-lens-shine,
+  .animate-shine-sweep,
+  .animate-wave,
+  .animate-transition-overlay {
     animation: none !important;
   }
 }

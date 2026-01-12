@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useWizard } from '../../context/WizardContext';
 import { useToast } from '../../context/ToastContext';
 import { TrendType } from '../../types';
@@ -7,6 +7,7 @@ import { rateLimiter } from '../../utils/rateLimit';
 import { apiRequest } from '../../lib/api';
 import { useTelegramMainButton, useTelegramHaptics } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
+import { StyleTransition } from '../ui/StyleTransition';
 
 // Style card component with enhanced animations
 interface StyleCardProps {
@@ -176,9 +177,18 @@ export const TrendStep: React.FC = () => {
   const { config, updateConfig, setStep } = useWizard();
   const { showToast } = useToast();
   const [luckyLoading, setLuckyLoading] = useState(false);
+  const [transitionTrend, setTransitionTrend] = useState<TrendType | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const isTelegram = isTelegramWebApp();
   const { show: showMainButton, hide: hideMainButton } = useTelegramMainButton();
   const { impactOccurred } = useTelegramHaptics();
+
+  // Handle transition animation completion
+  const handleTransitionComplete = useCallback(() => {
+    setIsTransitioning(false);
+    setTransitionTrend(null);
+    setStep(3);
+  }, [setStep]);
 
   const handleLucky = async () => {
     // Check rate limit
@@ -234,8 +244,13 @@ export const TrendStep: React.FC = () => {
 
   const handleSelectTrend = (trendId: TrendType) => {
       updateConfig({ trend: trendId });
-      // Auto-advance to next step
-      setTimeout(() => setStep(3), 150);
+      // Trigger haptic feedback
+      if (isTelegram) {
+        impactOccurred('medium');
+      }
+      // Start transition animation
+      setTransitionTrend(trendId);
+      setIsTransitioning(true);
   };
 
   // Trends with tags and visual properties - updated for 2025
@@ -723,6 +738,13 @@ export const TrendStep: React.FC = () => {
           </Button>
         </div>
       )}
+
+      {/* Style Transition Animation Overlay */}
+      <StyleTransition 
+        trend={transitionTrend}
+        isActive={isTransitioning}
+        onComplete={handleTransitionComplete}
+      />
     </div>
   );
 };
