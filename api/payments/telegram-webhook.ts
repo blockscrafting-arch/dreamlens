@@ -220,6 +220,15 @@ export default async function handler(
   const requestOrigin = (request.headers.origin || request.headers.referer) as string | undefined;
   setCorsHeaders(response, requestOrigin);
 
+  // Allow GET for health check / webhook verification
+  if (request.method === 'GET') {
+    return response.status(200).json({ 
+      status: 'ok', 
+      message: 'Telegram webhook endpoint is ready',
+      accepts: 'POST'
+    });
+  }
+
   if (request.method !== 'POST') {
     return response.status(405).json({ error: 'Method not allowed' });
   }
