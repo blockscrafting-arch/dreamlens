@@ -39,16 +39,27 @@ const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, anima
     setTimeout(() => setShowConfetti(false), 600);
   };
 
+  const handleTouchStart = () => {
+    setIsHovered(true);
+  };
+
+  const handleTouchEnd = () => {
+    // Delay to allow click to fire first
+    setTimeout(() => setIsHovered(false), 100);
+  };
+
   return (
     <div
       ref={cardRef}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       className={`
         relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 cursor-pointer 
         transition-all duration-300 ease-out h-44 sm:h-52 flex flex-col justify-between 
-        animate-fade-in-up group
+        animate-fade-in-up group touch-manipulation
         ${trend.gradient}
         ${isSelected 
           ? 'ring-2 ring-white/60 shadow-xl scale-[1.03] z-10' 
@@ -59,7 +70,10 @@ const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, anima
         animationDelay: `${animationDelay}ms`,
         animationFillMode: 'backwards',
         transform: isHovered && !isSelected
-          ? 'perspective(900px) rotateX(2deg) rotateY(-2deg) scale(1.03)'
+          ? 'perspective(900px) rotateX(2deg) rotateY(-2deg) scale(1.05) translateY(-8px)'
+          : undefined,
+        boxShadow: isHovered && !isSelected
+          ? '0 20px 40px rgba(0,0,0,0.15), 0 0 20px rgba(255,255,255,0.1)'
           : undefined,
       }}
     >
@@ -126,10 +140,15 @@ const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, anima
           </div>
           <span 
             className={`
-              text-2xl sm:text-3xl ml-2 transition-transform duration-300
-              ${isHovered ? 'scale-115 rotate-12 animate-emoji-pop' : ''}
+              text-2xl sm:text-3xl ml-2 transition-all duration-300
+              ${isHovered ? 'scale-[1.15] rotate-12 animate-emoji-pop' : ''}
               ${isSelected ? 'animate-bounce' : ''}
             `}
+            style={{
+              transform: isHovered && !isSelected 
+                ? 'scale(1.15) rotate(12deg)' 
+                : undefined,
+            }}
           >
             {trend.emoji}
           </span>
