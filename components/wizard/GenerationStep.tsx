@@ -166,18 +166,26 @@ export const GenerationStep: React.FC = () => {
   }, [apiRequest, config.trend, setResult, refresh]);
 
   const handleGenerate = useCallback(async (refinement?: string) => {
+    console.log('[GenerationStep] handleGenerate started', { refinement });
+    
     // Determine token cost based on quality and image count
     const quality = config.quality || '1K';
     const imageCount = config.imageCount || 1;
     const tokenCost = getBatchTokenCost(quality, imageCount);
+    
+    console.log('[GenerationStep] Config:', { quality, imageCount, tokenCost });
+
     // Определяем требуемое число людей (для пары показываем двоих, если фото ≥2)
     const inferredPeople = config.trend === TrendType.COUPLE
       ? ((userImages.length || lastUsedImages.length) >= 2 ? 2 : 1)
       : (config.numberOfPeople || 1);
     const sourceImages = userImages.length > 0 ? userImages : lastUsedImages;
     
+    console.log('[GenerationStep] inferredPeople:', inferredPeople, 'sourceImages count:', sourceImages.length);
+
     // Check if generation is possible (either free or with tokens)
     if (!canGenerate(quality)) {
+      console.log('[GenerationStep] Cannot generate - insufficient tokens');
       const currentBalance: number = tokens?.balance ?? 0;
       setError(`Недостаточно токенов. Требуется ${tokenCost} токенов для генерации ${imageCount} изображений в ${quality} качестве. Доступно: ${currentBalance}. Купите токены на странице тарифов.`);
       return;
@@ -186,6 +194,7 @@ export const GenerationStep: React.FC = () => {
     // Check rate limit before making request
     const rateLimitCheck = rateLimiter.canMakeRequest();
     if (!rateLimitCheck.allowed) {
+      console.log('[GenerationStep] Rate limit blocked:', rateLimitCheck.reason);
       setRateLimitError(rateLimitCheck.reason || 'Превышен лимит запросов');
       setTimeout(() => setRateLimitError(null), 5000);
       return;
@@ -195,20 +204,29 @@ export const GenerationStep: React.FC = () => {
     setHasStartedGeneration(true);
     setError(null);
     setRateLimitError(null);
+    setLoadingMsg("Подготовка студии...");
+
+    // Yield to main thread to allow UI to update loading state
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     try {
+      console.log('[GenerationStep] Recording request and preparing images...');
       // Record the request
       rateLimiter.recordRequest();
       setRemainingRequests(rateLimiter.getRemainingRequests());
 
       // Prepare images as base64
       setLoadingMsg("Подготовка изображений...");
+      console.log('[GenerationStep] Worker available:', isWorkerAvailable);
       
       const sortedImages = [...sourceImages].sort((a, b) => b.qualityScore - a.qualityScore);
       let selectedImages = sortedImages.filter(img => img.qualityScore > 40).slice(0, 5);
       if (selectedImages.length < 3) {
         selectedImages = sortedImages.slice(0, 3);
       }
+      
+      console.log('[GenerationStep] Selected images for processing:', selectedImages.length);
+
       if (selectedImages.length === 0) {
         setError('Нет подходящих изображений для генерации. Загрузите фото заново.');
         setLoading(false);
@@ -219,22 +237,28 @@ export const GenerationStep: React.FC = () => {
       const resizeImageFn = isWorkerAvailable 
         ? resizeImageWorker 
         : async (file: File, maxDimension: number = 1024) => {
+            console.log('[GenerationStep] Using fallback resize (non-worker)');
             const { resizeImage } = await import('@/utils/helpers');
             return resizeImage(file, maxDimension);
           };
 
+      console.log('[GenerationStep] Starting image processing batch...');
       const preparedImages = await Promise.all(
-        selectedImages.map(async (img) => {
+        selectedImages.map(async (img, idx) => {
           try {
+            console.log(`[GenerationStep] Processing image ${idx + 1}/${selectedImages.length}, size: ${img.file.size} bytes`);
             const base64 = await resizeImageFn(img.file, 1024);
-            if (!base64) return null;
-            
+            if (!base64) {
+              console.warn(`[GenerationStep] Image ${idx + 1} processing returned empty result`);
+              return null;
+            }
+            console.log(`[GenerationStep] Image ${idx + 1} processed successfully`);
             return {
               base64: `data:image/jpeg;base64,${base64}`,
               qualityScore: img.qualityScore,
             };
           } catch (err) {
-            console.error('Failed to process image:', err);
+            console.error(`[GenerationStep] Failed to process image ${idx + 1}:`, err);
             return null;
           }
         })
@@ -242,6 +266,7 @@ export const GenerationStep: React.FC = () => {
 
       // Filter out failed images
       const validPreparedImages = preparedImages.filter((img): img is NonNullable<typeof img> => img !== null);
+      console.log('[GenerationStep] Valid prepared images:', validPreparedImages.length);
       
       if (validPreparedImages.length < 3) {
         setError(`Недостаточно изображений после обработки. Загрузите минимум 3 фото.`);
@@ -255,6 +280,7 @@ export const GenerationStep: React.FC = () => {
       // Prepare reference image if exists
       let referenceImageBase64: { base64: string; mimeType?: string } | undefined;
       if (config.referenceImage) {
+        console.log('[GenerationStep] Processing reference image...');
         setLoadingMsg("Обработка референса...");
         const refBase64 = await resizeImageFn(config.referenceImage, 1024);
         if (refBase64) {
@@ -262,10 +288,14 @@ export const GenerationStep: React.FC = () => {
             base64: `data:image/jpeg;base64,${refBase64}`,
             mimeType: 'image/jpeg',
           };
+          console.log('[GenerationStep] Reference image processed');
+        } else {
+          console.warn('[GenerationStep] Reference image processing failed');
         }
       }
 
       // Call server API for generation
+      console.log('[GenerationStep] Sending request to /api/generate/image...');
       setLoadingMsg("Генерация изображения...");
       
       const response = await apiRequest('/api/generate/image', {
@@ -281,8 +311,11 @@ export const GenerationStep: React.FC = () => {
         }),
       });
 
+      console.log('[GenerationStep] API response received, status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[GenerationStep] API Error:', errorData);
         throw new Error(errorData.error || `Ошибка сервера: ${response.status}`);
       }
 
@@ -292,8 +325,11 @@ export const GenerationStep: React.FC = () => {
       const imageUrl = data?.imageUrl;
       const images = data?.images as Array<{ imageUrl: string; status: 'success' | 'failed'; error?: string }> | undefined;
 
+      console.log('[GenerationStep] Response data summary:', { generationId, hasImageUrl: !!imageUrl, imagesCount: images?.length });
+
       // If we got generationId but no imageUrl, start polling
       if (generationId && !imageUrl && !images) {
+        console.log('[GenerationStep] Starting polling for generation status...');
         setLoadingMsg("Ожидание завершения генерации...");
         await pollGenerationStatus(generationId);
         return;
@@ -301,16 +337,19 @@ export const GenerationStep: React.FC = () => {
 
       // Process multiple images if available
       if (images && images.length > 0) {
+        console.log('[GenerationStep] Processing multiple image results...');
         setLoadingMsg("Обработка результатов...");
         
         // Upload successful images to CDN
         const processedImages: GeneratedImage[] = await Promise.all(
-          images.map(async (img) => {
+          images.map(async (img, idx) => {
             if (img.status === 'success' && img.imageUrl) {
               try {
+                console.log(`[GenerationStep] Uploading image ${idx + 1} to CDN...`);
                 const cdnUrl = await uploadToCDN(img.imageUrl, `generation-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
                 return { imageUrl: cdnUrl, status: 'success' as const };
-              } catch {
+              } catch (e) {
+                console.warn(`[GenerationStep] CDN upload failed for image ${idx + 1}, using original URL`, e);
                 return { imageUrl: img.imageUrl, status: 'success' as const };
               }
             }
@@ -319,6 +358,7 @@ export const GenerationStep: React.FC = () => {
         );
 
         const successfulImages = processedImages.filter(img => img.status === 'success');
+        console.log('[GenerationStep] Successful processed images:', successfulImages.length);
         
         if (successfulImages.length === 0) {
           throw new Error('Не удалось сгенерировать ни одного изображения');
@@ -338,9 +378,11 @@ export const GenerationStep: React.FC = () => {
       } else {
         // Legacy single image response
         if (!imageUrl) {
+          console.error('[GenerationStep] No image URL in response');
           throw new Error('Сервер не вернул изображение');
         }
 
+        console.log('[GenerationStep] Uploading single image to CDN...');
         // Upload to CDN if configured
         const finalImageUrl = await uploadToCDN(imageUrl, `generation-${Date.now()}.png`);
         
@@ -357,6 +399,7 @@ export const GenerationStep: React.FC = () => {
         setSelectedImageIndex(0);
       }
       
+      console.log('[GenerationStep] Generation complete, refreshing state...');
       // Track analytics
       trackConversion.generateImage('token');
       
@@ -367,6 +410,7 @@ export const GenerationStep: React.FC = () => {
       setLoading(false);
 
     } catch (err: unknown) {
+      console.error('[GenerationStep] CRITICAL ERROR during generation:', err);
       const error = err instanceof Error ? err : new Error(String(err));
       logger.logApiError('handleGenerate', error, {
         hasRefinement: !!refinement,
