@@ -9,7 +9,7 @@ import { trackConversion } from '@/lib/analytics';
 import { uploadToCDN } from '@/lib/storage';
 import { Button } from '@/components/ui/Button';
 import { useApiRequest } from '@/lib/api';
-import { GeneratedResult, GeneratedImage, UserImage } from '@/types';
+import { GeneratedResult, GeneratedImage, UserImage, TrendType } from '@/types';
 import { getBatchTokenCost } from '@/shared/constants';
 import { useTelegramMainButton, useTelegramHaptics } from '@/hooks/useTelegram';
 import { isTelegramWebApp } from '@/lib/telegram';
