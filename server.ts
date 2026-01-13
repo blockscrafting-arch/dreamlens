@@ -48,14 +48,24 @@ const PORT = process.env.PORT || 3000;
 // CORS configuration with allowed origins from env
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
 
+// #region agent log
+console.log('[DEBUG-CORS] Startup config:', JSON.stringify({allowedOrigins,allowedOriginsRaw:process.env.ALLOWED_ORIGINS,nodeEnv:process.env.NODE_ENV,originsCount:allowedOrigins.length}));
+// #endregion
+
 app.use(cors({
   origin: (origin, callback) => {
+    // #region agent log
+    console.log('[DEBUG-CORS] Check:', JSON.stringify({incomingOrigin:origin,allowedOrigins,nodeEnv:process.env.NODE_ENV,isInList:allowedOrigins.includes(origin||''),isProduction:process.env.NODE_ENV==='production'}));
+    // #endregion
     // Allow requests with no origin (mobile apps, curl, Telegram WebApp, etc.)
     if (!origin) return callback(null, true);
     // Allow if origin is in the list or if not in production
     if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
+    // #region agent log
+    console.log('[DEBUG-CORS] DENIED:', JSON.stringify({deniedOrigin:origin,allowedOrigins,nodeEnv:process.env.NODE_ENV}));
+    // #endregion
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
