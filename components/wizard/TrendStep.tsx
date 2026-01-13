@@ -8,6 +8,8 @@ import { apiRequest } from '../../lib/api';
 import { useTelegramMainButton, useTelegramHaptics } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
 import { StyleTransition } from '../ui/StyleTransition';
+// @ts-ignore - resolver picks default export correctly at runtime
+import StylePreviewEffect from '../ui/StylePreviewEffect.tsx';
 
 // Style card component with enhanced animations
 interface StyleCardProps {
@@ -58,49 +60,44 @@ const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, anima
       onTouchEnd={handleTouchEnd}
       className={`
         relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 cursor-pointer 
-        transition-all duration-300 ease-out h-44 sm:h-52 flex flex-col justify-between 
+        transition-all duration-200 ease-out h-44 sm:h-52 flex flex-col justify-between 
         animate-fade-in-up group touch-manipulation
         ${trend.gradient}
         ${isSelected 
           ? 'ring-2 ring-white/60 shadow-xl scale-[1.03] z-10' 
-          : 'hover:shadow-xl hover:scale-[1.05] hover:-translate-y-2 active:scale-[0.98]'
+          : 'active:scale-[0.97]'
         }
       `}
       style={{
         animationDelay: `${animationDelay}ms`,
         animationFillMode: 'backwards',
         transform: isHovered && !isSelected
-          ? 'perspective(900px) rotateX(2deg) rotateY(-2deg) scale(1.05) translateY(-8px)'
+          ? 'scale(1.06) translateY(-10px)'
           : undefined,
         boxShadow: isHovered && !isSelected
-          ? '0 20px 40px rgba(0,0,0,0.15), 0 0 20px rgba(255,255,255,0.1)'
+          ? '0 20px 40px rgba(0,0,0,0.25), 0 0 30px rgba(255,255,255,0.15), inset 0 0 20px rgba(255,255,255,0.1)'
+          : isSelected
+          ? '0 10px 30px rgba(0,0,0,0.2)'
           : undefined,
       }}
     >
-      {/* Shimmer overlay for hot items */}
-      {trend.isHot && !isSelected && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+      {/* Hover/preview effects - главные эффекты (снег, искры и т.д.) */}
+      <StylePreviewEffect trend={trend.id} active={isHovered || isSelected} />
+      
+      {/* Яркая рамка при hover */}
+      {isHovered && !isSelected && (
+        <div 
+          className="absolute inset-0 pointer-events-none rounded-xl sm:rounded-2xl z-20"
+          style={{
+            boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.5), inset 0 0 20px rgba(255,255,255,0.2)',
+          }}
+        />
       )}
 
-      {/* Hover glow effect */}
-      <div 
-        className={`
-          absolute inset-0 opacity-0 transition-opacity duration-300 pointer-events-none
-          ${isHovered && !isSelected ? 'opacity-100' : ''}
-        `}
-        style={{
-          background: 'radial-gradient(circle at center, rgba(255,255,255,0.12) 0%, transparent 75%)',
-        }}
-      />
-      {/* Shimmer on hover */}
-      <div 
-        className={`
-          absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-300
-          ${isHovered ? 'opacity-70' : ''}
-        `}
-      >
-        <div className="style-card-shimmer" />
-      </div>
+      {/* Shimmer overlay for hot items */}
+      {trend.isHot && !isSelected && (
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
+      )}
 
       {/* Selection pulse effect */}
       {isSelected && (

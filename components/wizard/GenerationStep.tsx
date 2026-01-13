@@ -543,33 +543,45 @@ export const GenerationStep: React.FC = () => {
     notificationOccurred('success');
   }, [result, loading, isTelegram, notificationOccurred]);
 
-  if (loading) {
-    return (
-      <div className={`flex flex-col items-center justify-center ${isTelegram ? 'min-h-[70vh]' : 'min-h-[60vh]'} animate-fade-in text-center px-4`}>
-        <div className={`relative ${isTelegram ? 'w-40 h-40 mb-6' : 'w-56 h-56 mb-10'}`}>
-            <div className="absolute inset-0 border-4 border-brand-200/30 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-brand-500 rounded-full border-t-transparent animate-spin shadow-glow-md"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-                 <span className={`${isTelegram ? 'text-4xl' : 'text-5xl'} animate-breathe filter drop-shadow-2xl`}>📸</span>
-            </div>
-        </div>
-        <h3 
-          className={`${isTelegram ? 'text-xl' : 'text-3xl'} font-serif font-bold mb-3 text-shadow-soft animate-pulse`}
-          style={{ color: isTelegram ? 'var(--tg-theme-text-color, #000000)' : '#1f2937' }}
-        >
-            {loadingMsg}
-        </h3>
-        {!isTelegram && (
-          <p className="text-gray-400 text-sm animate-pulse">Не закрывайте вкладку... Это может занять до минуты</p>
-        )}
-        {/* Skeleton loader for image preview */}
-        {!isTelegram && (
-          <div className="mt-8 w-full max-w-md">
-            <div className="aspect-square rounded-2xl skeleton bg-gradient-to-br from-gray-100 to-gray-200"></div>
+  const renderLoader = () => (
+    <div className={`flex flex-col items-center justify-center ${isTelegram ? 'min-h-[70vh]' : 'min-h-[60vh]'} animate-fade-in text-center px-4`}>
+      <div className={`relative ${isTelegram ? 'w-40 h-40 mb-6' : 'w-56 h-56 mb-10'}`}>
+          <div className="absolute inset-0 border-4 border-brand-200/30 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-brand-500 rounded-full border-t-transparent animate-spin shadow-glow-md"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+               <span className={`${isTelegram ? 'text-4xl' : 'text-5xl'} animate-breathe filter drop-shadow-2xl`}>📸</span>
           </div>
-        )}
       </div>
-    );
+      <h3 
+        className={`${isTelegram ? 'text-xl' : 'text-3xl'} font-serif font-bold mb-3 text-shadow-soft animate-pulse`}
+        style={{ color: isTelegram ? 'var(--tg-theme-text-color, #000000)' : '#1f2937' }}
+      >
+          {loadingMsg}
+      </h3>
+      {!isTelegram && (
+        <p className="text-gray-400 text-sm animate-pulse">Не закрывайте вкладку... Это может занять до минуты</p>
+      )}
+      {!isTelegram && (
+        <div className="mt-8 w-full max-w-md">
+          <div className="aspect-square rounded-2xl skeleton bg-gradient-to-br from-gray-100 to-gray-200"></div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (loading) {
+    return renderLoader();
+  }
+
+  // Если результата ещё нет, но загрузка завершена/не стартовала — показываем лоадер для защиты от пустого экрана
+  if (!result) {
+    return renderLoader();
+  }
+
+  // Проверяем, что есть реальный URL изображения, иначе показываем лоадер
+  const currentImageUrl = getSelectedImageUrl();
+  if (!currentImageUrl) {
+    return renderLoader();
   }
 
   if (error) {
@@ -655,7 +667,6 @@ export const GenerationStep: React.FC = () => {
       {(() => {
         const successfulImages = result?.images?.filter(img => img.status === 'success') || [];
         const hasMultipleImages = successfulImages.length > 1;
-        const currentImageUrl = getSelectedImageUrl();
         
         return (
           <>
