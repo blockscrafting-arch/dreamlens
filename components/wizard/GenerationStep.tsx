@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useWizard } from '@/context/WizardContext';
 import { useTokens } from '@/context/TokenContext';
 import { useToast } from '@/context/ToastContext';
@@ -9,8 +9,8 @@ import { trackConversion } from '@/lib/analytics';
 import { uploadToCDN } from '@/lib/storage';
 import { Button } from '@/components/ui/Button';
 import { useApiRequest } from '@/lib/api';
-import { GeneratedResult } from '@/types';
-import { getTokenCost } from '@/shared/constants';
+import { GeneratedResult, GeneratedImage } from '@/types';
+import { getBatchTokenCost } from '@/shared/constants';
 import { useTelegramMainButton, useTelegramHaptics } from '@/hooks/useTelegram';
 import { isTelegramWebApp } from '@/lib/telegram';
 import { useImageWorker } from '@/hooks/useImageWorker';
@@ -47,6 +47,7 @@ export const GenerationStep: React.FC = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [rateLimitError, setRateLimitError] = useState<string | null>(null);
   const [remainingRequests, setRemainingRequests] = useState(rateLimiter.getRemainingRequests());
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
   const refinementRef = useRef<HTMLDivElement>(null);
   const isTelegram = isTelegramWebApp();
@@ -120,12 +121,14 @@ export const GenerationStep: React.FC = () => {
           const newResult: GeneratedResult = {
             id: generationId,
             timestamp: Date.now(),
+            images: [{ imageUrl: finalImageUrl, status: 'success' }],
             imageUrl: finalImageUrl,
             promptUsed: config.trend,
             trend: config.trend
           };
           
           setResult(newResult);
+          setSelectedImageIndex(0);
           
           // Track analytics
           trackConversion.generateImage('token');
@@ -162,14 +165,15 @@ export const GenerationStep: React.FC = () => {
   }, [apiRequest, config.trend, setResult, refresh]);
 
   const handleGenerate = useCallback(async (refinement?: string) => {
-    // Determine token cost based on quality
+    // Determine token cost based on quality and image count
     const quality = config.quality || '1K';
-    const tokenCost = getTokenCost(quality);
+    const imageCount = config.imageCount || 1;
+    const tokenCost = getBatchTokenCost(quality, imageCount);
     
     // Check if generation is possible (either free or with tokens)
     if (!canGenerate(quality)) {
       const currentBalance: number = tokens?.balance ?? 0;
-      setError(`Недостаточно токенов. Требуется ${tokenCost} токенов для генерации ${quality} качества. Доступно: ${currentBalance}. Купите токены на странице тарифов.`);
+      setError(`Недостаточно токенов. Требуется ${tokenCost} токенов для генерации ${imageCount} изображений в ${quality} качестве. Доступно: ${currentBalance}. Купите токены на странице тарифов.`);
       return;
     }
 
@@ -270,31 +274,72 @@ export const GenerationStep: React.FC = () => {
       const data = responseData.data;
       const generationId = data?.generationId;
       const imageUrl = data?.imageUrl;
+      const images = data?.images as Array<{ imageUrl: string; status: 'success' | 'failed'; error?: string }> | undefined;
 
       // If we got generationId but no imageUrl, start polling
-      if (generationId && !imageUrl) {
+      if (generationId && !imageUrl && !images) {
         setLoadingMsg("Ожидание завершения генерации...");
         await pollGenerationStatus(generationId);
         return;
       }
 
-      // If we got imageUrl directly
-      if (!imageUrl) {
-        throw new Error('Сервер не вернул изображение');
-      }
+      // Process multiple images if available
+      if (images && images.length > 0) {
+        setLoadingMsg("Обработка результатов...");
+        
+        // Upload successful images to CDN
+        const processedImages: GeneratedImage[] = await Promise.all(
+          images.map(async (img) => {
+            if (img.status === 'success' && img.imageUrl) {
+              try {
+                const cdnUrl = await uploadToCDN(img.imageUrl, `generation-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
+                return { imageUrl: cdnUrl, status: 'success' as const };
+              } catch {
+                return { imageUrl: img.imageUrl, status: 'success' as const };
+              }
+            }
+            return { imageUrl: '', status: 'failed' as const, error: img.error };
+          })
+        );
 
-      // Upload to CDN if configured
-      const finalImageUrl = await uploadToCDN(imageUrl, `generation-${Date.now()}.png`);
-      
-      const newResult: GeneratedResult = {
-        id: generationId || Date.now().toString(),
-        timestamp: Date.now(),
-        imageUrl: finalImageUrl,
-        promptUsed: config.trend,
-        trend: config.trend
-      };
-      
-      setResult(newResult);
+        const successfulImages = processedImages.filter(img => img.status === 'success');
+        
+        if (successfulImages.length === 0) {
+          throw new Error('Не удалось сгенерировать ни одного изображения');
+        }
+
+        const newResult: GeneratedResult = {
+          id: generationId || Date.now().toString(),
+          timestamp: Date.now(),
+          images: processedImages,
+          imageUrl: successfulImages[0]?.imageUrl,
+          promptUsed: config.trend,
+          trend: config.trend
+        };
+        
+        setResult(newResult);
+        setSelectedImageIndex(0);
+      } else {
+        // Legacy single image response
+        if (!imageUrl) {
+          throw new Error('Сервер не вернул изображение');
+        }
+
+        // Upload to CDN if configured
+        const finalImageUrl = await uploadToCDN(imageUrl, `generation-${Date.now()}.png`);
+        
+        const newResult: GeneratedResult = {
+          id: generationId || Date.now().toString(),
+          timestamp: Date.now(),
+          images: [{ imageUrl: finalImageUrl, status: 'success' }],
+          imageUrl: finalImageUrl,
+          promptUsed: config.trend,
+          trend: config.trend
+        };
+        
+        setResult(newResult);
+        setSelectedImageIndex(0);
+      }
       
       // Track analytics
       trackConversion.generateImage('token');
@@ -350,11 +395,23 @@ export const GenerationStep: React.FC = () => {
       handleGenerate(cleanText);
   };
 
+  // Get the currently selected image URL
+  const getSelectedImageUrl = useCallback((): string => {
+    if (!result) return '';
+    if (result.images && result.images.length > 0) {
+      const successfulImages = result.images.filter(img => img.status === 'success');
+      const safeIndex = Math.min(selectedImageIndex, successfulImages.length - 1);
+      return successfulImages[safeIndex]?.imageUrl || result.imageUrl || '';
+    }
+    return result.imageUrl || '';
+  }, [result, selectedImageIndex]);
+
   const handleShare = async () => {
       if (result) {
           try {
+            const imageUrlToShare = getSelectedImageUrl();
             if (navigator.share) {
-                const response = await fetch(result.imageUrl);
+                const response = await fetch(imageUrlToShare);
                 if (!response.ok) {
                   throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
                 }
@@ -424,7 +481,7 @@ export const GenerationStep: React.FC = () => {
       } catch (error) {
         // Fallback to download if share fails
         const link = document.createElement('a');
-        link.href = result?.imageUrl || '';
+        link.href = getSelectedImageUrl();
         link.download = `dreamlens-${Date.now()}.png`;
         link.click();
       }
@@ -552,45 +609,109 @@ export const GenerationStep: React.FC = () => {
         </div>
       )}
       
-      {/* Premium Main Result Card */}
-      <div className={`relative inline-block group w-full ${isTelegram ? 'max-w-full' : 'max-w-2xl'} mx-auto select-none`}>
-          {!isTelegram && (
-            <div className="absolute -inset-2 bg-gradient-premium rounded-[2.5rem] blur-xl opacity-40 group-hover:opacity-60 transition duration-700 animate-glow"></div>
-          )}
-          
-          <div className={`relative ${isTelegram ? 'rounded-xl p-2' : 'glass-lg rounded-[2rem] p-4'} shadow-premium overflow-hidden ${isTelegram ? '' : 'border border-white/30'}`}>
-            {/* Image Container */}
-            <div className={`relative ${isTelegram ? 'rounded-lg' : 'rounded-[1.5rem]'} overflow-hidden ${isTelegram ? '' : 'glass-sm'} flex justify-center items-center ${isTelegram ? 'min-h-[50vh]' : 'min-h-[300px]'}`}>
-                {/* Skeleton loader while image loads */}
-                <div className="absolute inset-0 skeleton bg-gradient-to-br from-gray-100 to-gray-200"></div>
-                <img 
-                    src={result?.imageUrl} 
-                    alt="Result" 
-                    className={`relative max-w-full ${isTelegram ? 'max-h-[70vh]' : 'max-h-[75vh]'} w-auto h-auto object-contain shadow-soft-lg transition-all duration-200 z-10`}
-                    onLoad={(e) => {
-                        const skeleton = e.currentTarget.previousElementSibling as HTMLElement;
-                        if (skeleton) skeleton.style.display = 'none';
-                    }}
-                />
+      {/* Image Gallery */}
+      {(() => {
+        const successfulImages = result?.images?.filter(img => img.status === 'success') || [];
+        const hasMultipleImages = successfulImages.length > 1;
+        const currentImageUrl = getSelectedImageUrl();
+        
+        return (
+          <>
+            {/* Premium Main Result Card */}
+            <div className={`relative inline-block group w-full ${isTelegram ? 'max-w-full' : 'max-w-2xl'} mx-auto select-none`}>
+                {!isTelegram && (
+                  <div className="absolute -inset-2 bg-gradient-premium rounded-[2.5rem] blur-xl opacity-40 group-hover:opacity-60 transition duration-700 animate-glow"></div>
+                )}
+                
+                <div className={`relative ${isTelegram ? 'rounded-xl p-2' : 'glass-lg rounded-[2rem] p-4'} shadow-premium overflow-hidden ${isTelegram ? '' : 'border border-white/30'}`}>
+                  {/* Image Container */}
+                  <div className={`relative ${isTelegram ? 'rounded-lg' : 'rounded-[1.5rem]'} overflow-hidden ${isTelegram ? '' : 'glass-sm'} flex justify-center items-center ${isTelegram ? 'min-h-[50vh]' : 'min-h-[300px]'}`}>
+                      {/* Skeleton loader while image loads */}
+                      <div className="absolute inset-0 skeleton bg-gradient-to-br from-gray-100 to-gray-200"></div>
+                      <img 
+                          src={currentImageUrl} 
+                          alt="Result" 
+                          className={`relative max-w-full ${isTelegram ? 'max-h-[70vh]' : 'max-h-[75vh]'} w-auto h-auto object-contain shadow-soft-lg transition-all duration-200 z-10`}
+                          onLoad={(e) => {
+                              const skeleton = e.currentTarget.previousElementSibling as HTMLElement;
+                              if (skeleton) skeleton.style.display = 'none';
+                          }}
+                      />
 
-                {/* Premium Download Button - for all platforms */}
-                <div className={`absolute ${isTelegram ? 'top-2 right-2' : 'top-4 right-4'} flex gap-2 z-20`}>
-                  <button 
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = result?.imageUrl || '';
-                      link.download = `dreamlens-${Date.now()}.png`;
-                      link.click();
-                    }}
-                    className={`${isTelegram ? 'bg-white/80 p-2.5' : 'glass-md bg-white/90 p-3.5'} backdrop-blur-md text-gray-800 rounded-full shadow-premium hover:scale-110 hover:shadow-glow-md transition-all z-20`}
-                    title="Скачать в HD"
-                  >
-                    <svg className={`${isTelegram ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                  </button>
+                      {/* Premium Download Button - for all platforms */}
+                      <div className={`absolute ${isTelegram ? 'top-2 right-2' : 'top-4 right-4'} flex gap-2 z-20`}>
+                        <button 
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = currentImageUrl;
+                            link.download = `dreamlens-${Date.now()}.png`;
+                            link.click();
+                          }}
+                          className={`${isTelegram ? 'bg-white/80 p-2.5' : 'glass-md bg-white/90 p-3.5'} backdrop-blur-md text-gray-800 rounded-full shadow-premium hover:scale-110 hover:shadow-glow-md transition-all z-20`}
+                          title="Скачать в HD"
+                        >
+                          <svg className={`${isTelegram ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </button>
+                      </div>
+
+                      {/* Image counter badge */}
+                      {hasMultipleImages && (
+                        <div className={`absolute ${isTelegram ? 'top-2 left-2' : 'top-4 left-4'} z-20`}>
+                          <span className={`${isTelegram ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} bg-black/60 text-white rounded-full font-medium backdrop-blur-md`}>
+                            {selectedImageIndex + 1} / {successfulImages.length}
+                          </span>
+                        </div>
+                      )}
+                  </div>
                 </div>
             </div>
-          </div>
-      </div>
+
+            {/* Thumbnail Gallery - only show if multiple images */}
+            {hasMultipleImages && (
+              <div className={`${isTelegram ? 'mt-3 px-2' : 'mt-6'} max-w-2xl mx-auto`}>
+                <div className="flex gap-2 sm:gap-3 justify-center flex-wrap">
+                  {successfulImages.map((img, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        impactOccurred('light');
+                        setSelectedImageIndex(index);
+                      }}
+                      className={`
+                        relative rounded-lg sm:rounded-xl overflow-hidden transition-all duration-200
+                        ${isTelegram ? 'w-14 h-14 sm:w-16 sm:h-16' : 'w-20 h-20 sm:w-24 sm:h-24'}
+                        ${selectedImageIndex === index 
+                          ? 'ring-2 sm:ring-3 ring-brand-500 ring-offset-2 scale-105 shadow-glow-md' 
+                          : 'ring-1 ring-gray-200 hover:ring-brand-300 hover:scale-102 opacity-70 hover:opacity-100'
+                        }
+                      `}
+                    >
+                      <img 
+                        src={img.imageUrl} 
+                        alt={`Вариант ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      {selectedImageIndex === index && (
+                        <div className="absolute inset-0 bg-brand-500/10 flex items-center justify-center">
+                          <svg className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p 
+                  className="text-center mt-2 text-xs"
+                  style={{ color: 'var(--tg-theme-hint-color, #999999)' }}
+                >
+                  Нажми, чтобы выбрать вариант
+                </p>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Tech Details Toggle - hidden in Telegram */}
       {!isTelegram && (
@@ -639,7 +760,7 @@ export const GenerationStep: React.FC = () => {
                   Баланс: <strong>{tokens.balance} токенов</strong>
                   {config.quality && (
                     <span className="ml-2">
-                      (стоимость генерации {config.quality}: {config.quality === '4K' ? 3 : config.quality === '2K' ? 2 : 1} токенов)
+                      (стоимость: {getBatchTokenCost(config.quality, config.imageCount || 1)} токенов за {config.imageCount || 1} шт.)
                     </span>
                   )}
                 </>

@@ -18,6 +18,23 @@ const getTimeUntilMidnight = (): { hours: number; minutes: number; seconds: numb
   return { hours, minutes, seconds };
 };
 
+// Wheel configuration constants
+const WHEEL_SEGMENTS = 10;
+const SEGMENT_ANGLE = 360 / WHEEL_SEGMENTS;
+const TOKEN_VALUES = [1, 5, 2, 8, 3, 10, 4, 7, 2, 6];
+const WHEEL_COLORS = [
+  '#8B5CF6', // purple
+  '#EC4899', // pink
+  '#3B82F6', // blue
+  '#10B981', // green
+  '#F59E0B', // yellow
+  '#EF4444', // red
+  '#6366F1', // indigo
+  '#14B8A6', // teal
+  '#F97316', // orange
+  '#06B6D4', // cyan
+];
+
 // Countdown Timer Component
 const CountdownTimer: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(getTimeUntilMidnight());
@@ -134,6 +151,45 @@ export const DailyWheel: React.FC = () => {
     }
   }, [isDragging, isSpinning, dragStartAngle, getAngleFromCenter, lastDragTime, lastDragAngle, isTelegram, impactOccurred]);
 
+  // Calculate rotation angle to land on a specific segment value
+  const calculateTargetRotation = useCallback((targetValue: number, baseRotation: number): number => {
+    // Find index of segment with target value
+    const segmentIndex = TOKEN_VALUES.findIndex(v => v === targetValue);
+    if (segmentIndex === -1) {
+      // If exact value not found, find closest
+      const closestIndex = TOKEN_VALUES.reduce((closest, val, idx) => 
+        Math.abs(val - targetValue) < Math.abs(TOKEN_VALUES[closest] - targetValue) ? idx : closest
+      , 0);
+      return calculateTargetRotation(TOKEN_VALUES[closestIndex], baseRotation);
+    }
+    
+    // Pointer is at top (-90° or 270° from x-axis)
+    // When wheel rotates R degrees, pointer points at (270 - R) mod 360 on the wheel
+    // Segment i occupies from i*36° to (i+1)*36°, center at i*36 + 18°
+    // To land on segment i: 270 - R ≡ i*36 + 18 (mod 360)
+    // So: R ≡ 270 - (i*36 + 18) = 252 - i*36 (mod 360)
+    
+    const segmentCenterAngle = segmentIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
+    const targetAngleOnWheel = 270 - segmentCenterAngle;
+    
+    // Add random offset within segment (±15°) so it doesn't always land exactly in center
+    const randomOffset = (Math.random() - 0.5) * (SEGMENT_ANGLE * 0.7);
+    
+    // Calculate how many full rotations to add (at least 5 full spins)
+    const minSpins = 5;
+    const fullRotations = minSpins * 360 + Math.random() * 360;
+    
+    // Final rotation: ensure we go forward from current position
+    let finalAngle = targetAngleOnWheel + randomOffset + fullRotations;
+    
+    // Make sure we rotate forward (positive direction) by enough
+    while (finalAngle < baseRotation + 1440) {
+      finalAngle += 360;
+    }
+    
+    return finalAngle;
+  }, []);
+
   // Handle drag end - trigger spin if velocity is high enough
   const handleDragEnd = useCallback(async () => {
     if (!isDragging) return;
@@ -142,28 +198,22 @@ export const DailyWheel: React.FC = () => {
     // If velocity is high enough, trigger spin
     const absVelocity = Math.abs(dragVelocity);
     if (absVelocity > 100 && canSpin) {
-      // Calculate spin amount based on velocity (more velocity = more spins)
-      const spinMultiplier = Math.min(absVelocity / 200, 5); // Cap at 5x
-      const direction = dragVelocity > 0 ? 1 : -1;
-      const spinAmount = direction * (1440 + Math.random() * 360) * spinMultiplier;
-      
       setIsSpinning(true);
       
       if (isTelegram) {
         impactOccurred('medium');
       }
       
-      // Animate to final position
-      const startRotation = rotation;
-      const finalRotation = startRotation + spinAmount;
-      setRotation(finalRotation);
-      
-      // Claim bonus
+      // First claim bonus to get the actual amount
       const result = await claimDailyBonus();
       
-      // Wait for animation to complete
-      setTimeout(async () => {
-        if (result.success && result.tokensAwarded) {
+      if (result.success && result.tokensAwarded) {
+        // Calculate rotation to land on the won amount
+        const targetRotation = calculateTargetRotation(result.tokensAwarded, rotation);
+        setRotation(targetRotation);
+        
+        // Wait for animation to complete
+        setTimeout(async () => {
           setWonAmount(result.tokensAwarded);
           setJustWon(true);
           await refresh();
@@ -178,16 +228,16 @@ export const DailyWheel: React.FC = () => {
             setJustWon(false);
             setIsSpinning(false);
           }, 3000);
-        } else {
-          setIsSpinning(false);
-          if (isTelegram) {
-            notificationOccurred('error');
-          }
-          showToast(result.error || 'Ошибка при получении бонуса', 'error');
+        }, 4000);
+      } else {
+        setIsSpinning(false);
+        if (isTelegram) {
+          notificationOccurred('error');
         }
-      }, 4000);
+        showToast(result.error || 'Ошибка при получении бонуса', 'error');
+      }
     }
-  }, [isDragging, dragVelocity, canSpin, rotation, claimDailyBonus, refresh, showToast, isTelegram, impactOccurred, notificationOccurred]);
+  }, [isDragging, dragVelocity, canSpin, rotation, claimDailyBonus, calculateTargetRotation, refresh, showToast, isTelegram, impactOccurred, notificationOccurred]);
 
   // Handle click to spin (fallback for non-drag users)
   const handleClick = async () => {
@@ -199,18 +249,16 @@ export const DailyWheel: React.FC = () => {
       impactOccurred('medium');
     }
     
-    // Start spinning animation
-    const baseRotation = rotation;
-    const spinAmount = 1800 + Math.random() * 720; // 5-7 full rotations
-    const newRotation = baseRotation + spinAmount;
-    setRotation(newRotation);
-
-    // Claim bonus
+    // First claim bonus to get the actual amount
     const result = await claimDailyBonus();
     
-    // Wait for animation
-    setTimeout(async () => {
-      if (result.success && result.tokensAwarded) {
+    if (result.success && result.tokensAwarded) {
+      // Calculate rotation to land on the won amount
+      const targetRotation = calculateTargetRotation(result.tokensAwarded, rotation);
+      setRotation(targetRotation);
+      
+      // Wait for animation
+      setTimeout(async () => {
         setWonAmount(result.tokensAwarded);
         setJustWon(true);
         await refresh();
@@ -225,14 +273,14 @@ export const DailyWheel: React.FC = () => {
           setJustWon(false);
           setIsSpinning(false);
         }, 3000);
-      } else {
-        setIsSpinning(false);
-        if (isTelegram) {
-          notificationOccurred('error');
-        }
-        showToast(result.error || 'Ошибка при получении бонуса', 'error');
+      }, 4000);
+    } else {
+      setIsSpinning(false);
+      if (isTelegram) {
+        notificationOccurred('error');
       }
-    }, 4000);
+      showToast(result.error || 'Ошибка при получении бонуса', 'error');
+    }
   };
 
   // Mouse events
@@ -289,25 +337,6 @@ export const DailyWheel: React.FC = () => {
       }
     };
   }, []);
-
-  // Wheel segments
-  const segments = 10;
-  const segmentAngle = 360 / segments;
-  const colors = [
-    '#8B5CF6', // purple
-    '#EC4899', // pink
-    '#3B82F6', // blue
-    '#10B981', // green
-    '#F59E0B', // yellow
-    '#EF4444', // red
-    '#6366F1', // indigo
-    '#14B8A6', // teal
-    '#F97316', // orange
-    '#06B6D4', // cyan
-  ];
-
-  // Token values for display
-  const tokenValues = [1, 5, 2, 8, 3, 10, 4, 7, 2, 6];
 
   return (
     <div className="relative flex flex-col items-center">
@@ -375,18 +404,18 @@ export const DailyWheel: React.FC = () => {
               className="absolute inset-0"
               style={{
                 background: `conic-gradient(
-                  ${colors.map((color, i) => `${color} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg`).join(', ')}
+                  ${WHEEL_COLORS.map((color, i) => `${color} ${i * SEGMENT_ANGLE}deg ${(i + 1) * SEGMENT_ANGLE}deg`).join(', ')}
                 )`,
               }}
             />
 
             {/* Segment dividers and values */}
-            {tokenValues.map((value, i) => (
+            {TOKEN_VALUES.map((value, i) => (
               <div
                 key={i}
                 className="absolute inset-0 flex items-center justify-center"
                 style={{
-                  transform: `rotate(${i * segmentAngle + segmentAngle / 2}deg)`,
+                  transform: `rotate(${i * SEGMENT_ANGLE + SEGMENT_ANGLE / 2}deg)`,
                 }}
               >
                 <span 
@@ -472,7 +501,7 @@ export const DailyWheel: React.FC = () => {
                   key={i}
                   className="absolute w-2 h-2 rounded-full animate-ping"
                   style={{
-                    backgroundColor: colors[i % colors.length],
+                    backgroundColor: WHEEL_COLORS[i % WHEEL_COLORS.length],
                     left: `${50 + Math.cos(i * 30 * Math.PI / 180) * 60}%`,
                     top: `${50 + Math.sin(i * 30 * Math.PI / 180) * 60}%`,
                     animationDelay: `${i * 0.1}s`,

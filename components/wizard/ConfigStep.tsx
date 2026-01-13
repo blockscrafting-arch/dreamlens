@@ -8,26 +8,34 @@ import { rateLimiter } from '../../utils/rateLimit';
 import { apiRequest } from '../../lib/api';
 import { useTelegramMainButton, useTelegramHaptics } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
+import { getBatchTokenCost, getBatchDiscount, MIN_BATCH_SIZE, MAX_BATCH_SIZE } from '../../shared/constants';
 
 // Mapping for display purposes
 const STYLE_INFO: Record<TrendType, { title: string; desc: string; emoji: string; gradient: string }> = {
     [TrendType.MAGAZINE]: { title: "DAZED", desc: "Авангард и высокая мода", emoji: "📸", gradient: "from-gray-800 to-black" },
-    [TrendType.A_LA_RUSSE]: { title: "A LA RUSSE", desc: "Имперская роскошь и зима", emoji: "❄️", gradient: "from-red-800 to-red-900" },
-    [TrendType.MOB_WIFE]: { title: "MOB WIFE", desc: "Гламур 90-х и меха", emoji: "🐆", gradient: "from-yellow-700 to-amber-900" },
-    [TrendType.SPORT_CHIC]: { title: "OFF-DUTY", desc: "Спорт-шик и папарацци", emoji: "🧢", gradient: "from-emerald-600 to-emerald-800" },
-    [TrendType.CYBER_ANGEL]: { title: "ANGEL Y3K", desc: "Цифровая дива", emoji: "🪽", gradient: "from-blue-100 to-blue-300" },
+    [TrendType.PROFESSIONAL]: { title: "CEO", desc: "Деловой портрет", emoji: "💼", gradient: "from-gray-700 to-gray-900" },
     [TrendType.COUPLE]: { title: "CINEMA", desc: "Любовное настроение", emoji: "🎬", gradient: "from-rose-500 to-rose-700" },
     [TrendType.RETRO_2K17]: { title: "INDIE SLEAZE", desc: "Вечеринка и вспышка", emoji: "📼", gradient: "from-indigo-600 to-violet-700" },
-    [TrendType.OFFICE_SIREN]: { title: "OFFICE SIREN", desc: "Строгий шик", emoji: "👓", gradient: "from-slate-400 to-slate-600" },
-    [TrendType.OLD_MONEY]: { title: "OLD MONEY", desc: "Тихая роскошь", emoji: "🥂", gradient: "from-amber-100 to-amber-300" },
-    [TrendType.MINIMALIST]: { title: "CLEAN GIRL", desc: "Естественность и кожа", emoji: "☁️", gradient: "from-gray-100 to-gray-300" },
-    [TrendType.ETHEREAL]: { title: "FANTASY", desc: "Эльфийская сказка", emoji: "🦋", gradient: "from-teal-200 to-teal-400" },
-    [TrendType.NEON_CYBER]: { title: "LIQUID CHROME", desc: "Киберпанк", emoji: "💿", gradient: "from-fuchsia-700 to-indigo-900" },
-    [TrendType.PROFESSIONAL]: { title: "CEO", desc: "Деловой портрет", emoji: "💼", gradient: "from-gray-700 to-gray-900" },
-    [TrendType.COQUETTE]: { title: "COQUETTE", desc: "Романтика и пастель", emoji: "🎀", gradient: "from-pink-200 to-pink-300" },
     [TrendType.DARK_ACADEMIA]: { title: "DARK ACADEMIA", desc: "Готика и книги", emoji: "📚", gradient: "from-stone-800 to-black" },
+    [TrendType.OLD_MONEY]: { title: "OLD MONEY", desc: "Тихая роскошь", emoji: "🥂", gradient: "from-amber-100 to-amber-300" },
+    [TrendType.MOB_WIFE]: { title: "MOB WIFE", desc: "Гламур 90-х и меха", emoji: "🐆", gradient: "from-yellow-700 to-amber-900" },
+    [TrendType.A_LA_RUSSE]: { title: "A LA RUSSE", desc: "Имперская роскошь и зима", emoji: "❄️", gradient: "from-red-800 to-red-900" },
+    [TrendType.OFFICE_SIREN]: { title: "OFFICE SIREN", desc: "Строгий шик", emoji: "👓", gradient: "from-slate-400 to-slate-600" },
+    [TrendType.COQUETTE]: { title: "COQUETTE", desc: "Романтика и пастель", emoji: "🎀", gradient: "from-pink-200 to-pink-300" },
+    [TrendType.CLEAN_GIRL]: { title: "CLEAN GIRL", desc: "Естественность и кожа", emoji: "☁️", gradient: "from-gray-100 to-gray-300" },
+    [TrendType.CYBER_ANGEL]: { title: "ANGEL Y3K", desc: "Цифровая дива", emoji: "🪽", gradient: "from-blue-100 to-blue-300" },
+    [TrendType.NEON_CYBER]: { title: "LIQUID CHROME", desc: "Киберпанк", emoji: "💿", gradient: "from-fuchsia-700 to-indigo-900" },
+    [TrendType.SPORT_CHIC]: { title: "OFF-DUTY", desc: "Спорт-шик и папарацци", emoji: "🧢", gradient: "from-emerald-600 to-emerald-800" },
     [TrendType.Y2K_POP]: { title: "2000s ICON", desc: "Гламур нулевых", emoji: "💄", gradient: "from-pink-500 to-purple-600" },
     [TrendType.COTTAGECORE]: { title: "COTTAGECORE", desc: "Природа и винтаж", emoji: "🌻", gradient: "from-lime-200 to-green-300" },
+    [TrendType.ETHEREAL]: { title: "FANTASY", desc: "Эльфийская сказка", emoji: "🦋", gradient: "from-teal-200 to-teal-400" },
+    [TrendType.MINIMALIST]: { title: "MINIMAL", desc: "Чистые линии", emoji: "◻️", gradient: "from-slate-100 to-slate-200" },
+    [TrendType.TOMATO_GIRL]: { title: "TOMATO GIRL", desc: "Итальянское лето", emoji: "🍅", gradient: "from-red-400 to-orange-500" },
+    [TrendType.COASTAL_COWGIRL]: { title: "COASTAL COWGIRL", desc: "Пляж и вестерн", emoji: "🤠", gradient: "from-amber-200 to-cyan-300" },
+    [TrendType.QUIET_LUXURY]: { title: "QUIET LUXURY", desc: "Неброская роскошь", emoji: "🤍", gradient: "from-stone-200 to-stone-400" },
+    [TrendType.BALLETCORE]: { title: "BALLETCORE", desc: "Грация балерины", emoji: "🩰", gradient: "from-pink-100 to-rose-200" },
+    [TrendType.GRUNGE_REVIVAL]: { title: "GRUNGE REVIVAL", desc: "90-е возвращаются", emoji: "🎸", gradient: "from-stone-700 to-stone-900" },
+    [TrendType.SOFT_GOTH]: { title: "SOFT GOTH", desc: "Мягкая готика", emoji: "🖤", gradient: "from-purple-900 to-black" },
     [TrendType.CUSTOM]: { title: "ТВОЯ ИДЕЯ", desc: "Авторский стиль", emoji: "✨", gradient: "from-violet-500 to-fuchsia-500" },
 };
 
@@ -403,6 +411,73 @@ export const ConfigStep: React.FC = () => {
                      </div>
                 </div>
             </div>
+        </div>
+
+        {/* Image Count Selector */}
+        <div className="space-y-3 pt-2">
+          <div className="flex justify-between items-center">
+            <label 
+              className="font-bold text-lg"
+              style={{ color: 'var(--tg-theme-text-color, #000000)' }}
+            >
+              Количество вариантов
+            </label>
+            {config.imageCount > 1 && (
+              <span className="text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-xs shadow-sm border border-green-100">
+                Скидка {getBatchDiscount(config.imageCount)}%
+              </span>
+            )}
+          </div>
+          
+          <div className="flex gap-2 sm:gap-3">
+            {Array.from({ length: MAX_BATCH_SIZE - MIN_BATCH_SIZE + 1 }, (_, i) => i + MIN_BATCH_SIZE).map((count) => {
+              const isSelected = config.imageCount === count;
+              const discount = getBatchDiscount(count);
+              const cost = getBatchTokenCost(config.quality, count);
+              
+              return (
+                <button
+                  key={count}
+                  onClick={() => updateConfig({ imageCount: count })}
+                  className={`
+                    relative flex flex-col items-center justify-center min-w-[48px] sm:min-w-[56px] py-2 sm:py-3 px-2 sm:px-3 rounded-xl border-2 transition-all duration-300 ease-out
+                    ${isSelected 
+                      ? 'border-brand-500 bg-gradient-to-b from-brand-50 to-brand-100 shadow-glow-md scale-105' 
+                      : 'border-gray-200 hover:border-brand-300 hover:shadow-soft active:scale-95'
+                    }
+                  `}
+                  style={{
+                    backgroundColor: isSelected ? undefined : 'var(--tg-theme-bg-color, #ffffff)',
+                  }}
+                >
+                  <span 
+                    className={`text-lg sm:text-xl font-bold ${isSelected ? 'text-brand-600' : ''}`}
+                    style={!isSelected ? { color: 'var(--tg-theme-text-color, #000000)' } : {}}
+                  >
+                    {count}
+                  </span>
+                  {discount > 0 && (
+                    <span className="text-[9px] sm:text-[10px] text-green-600 font-semibold mt-0.5">
+                      -{discount}%
+                    </span>
+                  )}
+                  <span 
+                    className="text-[9px] sm:text-[10px] mt-0.5 font-medium"
+                    style={{ color: 'var(--tg-theme-hint-color, #999999)' }}
+                  >
+                    {cost} ток.
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          
+          <p 
+            className="text-xs leading-relaxed"
+            style={{ color: 'var(--tg-theme-hint-color, #999999)' }}
+          >
+            Больше вариантов — больше шансов найти идеальный кадр!
+          </p>
         </div>
 
         <hr className="border-gray-100 my-2" />

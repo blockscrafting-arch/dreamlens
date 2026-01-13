@@ -30,8 +30,8 @@ export async function claimDailyBonus(userId: string): Promise<{ success: boolea
       tokens = await TokenRepo.createTokenRecord(userId, 0);
     }
 
-    // Award random bonus (1-5 tokens)
-    const bonusAmount = Math.floor(Math.random() * 5) + 1;
+    // Award random bonus (1-10 tokens) - matching wheel values
+    const bonusAmount = Math.floor(Math.random() * 10) + 1;
     
     logger.logApiInfo('BonusService - attempting to claim bonus', {
       userId: userId?.substring(0, 8) + '...',

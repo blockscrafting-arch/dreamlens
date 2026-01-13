@@ -32,6 +32,12 @@ ${hasReference ? '5. REFERENCE IMAGE: The LAST image is a STYLE REFERENCE ONLY. 
 You are a world-class fashion photographer with 20+ years of experience shooting for Vogue Italia, Dazed, i-D, and W Magazine.
 Your work is known for: AUTHENTIC TEXTURE, EDITORIAL STORYTELLING, CINEMATIC LIGHTING, CONTEMPORARY EDGE.
 
+CRITICAL OUTPUT REQUIREMENT:
+- Generate EXACTLY ONE single photograph. 
+- NEVER create collages, grids, multi-panel images, or compositions with multiple photos.
+- The multiple input images are references of the SAME person - use them to understand the subject's face, NOT to create multiple images.
+- Output must be ONE unified, cohesive photograph.
+
 ${identityInstruction}
 
 TECHNICAL STANDARDS:

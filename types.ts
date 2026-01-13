@@ -68,16 +68,28 @@ export interface GenerationConfig {
   trend: TrendType;
   ratio: AspectRatio;
   quality: ImageQuality;
+  imageCount: number; // 1-5, number of images to generate
   dominantColor?: string;
   userPrompt?: string;
   referenceImage?: File; // For drag and drop reference
   refinementText?: string; // NEW: For "Edit this image" functionality
 }
 
+/**
+ * Single generated image result
+ */
+export interface GeneratedImage {
+  imageUrl: string;
+  status: 'success' | 'failed';
+  error?: string;
+}
+
 export interface GeneratedResult {
   id: string;
   timestamp: number;
-  imageUrl: string;
+  images: GeneratedImage[]; // Array of generated images
   promptUsed: string;
   trend: TrendType;
+  // Backward compatibility - primary image URL
+  imageUrl?: string;
 }

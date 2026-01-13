@@ -24,6 +24,16 @@ import * as GenerationService from '../services/generation.service.js';
 import * as TokenService from '../services/token.service.js';
 import * as SubscriptionService from '../services/subscription.service.js';
 import { sql } from '../repositories/database.js';
+import { MAX_BATCH_SIZE, MIN_BATCH_SIZE } from '../../shared/constants.js';
+
+/**
+ * Result of a single image generation attempt
+ */
+interface GenerationAttemptResult {
+  success: boolean;
+  imageUrl?: string;
+  error?: string;
+}
 
 export default async function handler(
   request: VercelRequest,
@@ -117,9 +127,19 @@ export default async function handler(
       );
     }
 
-    // Determine token cost
+    // Get image count (default to 1)
+    const imageCount = Math.max(MIN_BATCH_SIZE, Math.min(MAX_BATCH_SIZE, config.imageCount || 1));
+
+    // Determine token cost (with batch discount)
     const qualityValue = config.quality || '1K';
-    const tokenCost = GenerationService.calculateTokenCost(qualityValue);
+    const tokenCost = GenerationService.calculateBatchTokenCost(qualityValue, imageCount);
+
+    logger.logApiInfo('Batch generation requested', {
+      imageCount,
+      quality: qualityValue,
+      tokenCost,
+      discount: GenerationService.getDiscountForBatch(imageCount),
+    });
 
     // Get subscription and limits
     const subscription = await SubscriptionService.getUserSubscription(user.id);
@@ -236,58 +256,97 @@ export default async function handler(
     }
 
     try {
-      // Use tryWithFallback to automatically switch to backup key on retryable errors
-      const geminiResponse = await tryWithFallback(
-        async (apiKey: string) => {
-          const ai = new GoogleGenAI({ apiKey });
-          return await ai.models.generateContent({
-            model: 'gemini-3-pro-image-preview',
-            contents: {
-              parts: [
-                ...imageParts,
-                { text: finalPrompt }
-              ]
+      // Helper function to generate a single image
+      const generateSingleImage = async (): Promise<GenerationAttemptResult> => {
+        try {
+          const geminiResponse = await tryWithFallback(
+            async (apiKey: string) => {
+              const ai = new GoogleGenAI({ apiKey });
+              return await ai.models.generateContent({
+                model: 'gemini-3-pro-image-preview',
+                contents: {
+                  parts: [
+                    ...imageParts,
+                    { text: finalPrompt }
+                  ]
+                },
+                config: {
+                  imageConfig: {
+                    aspectRatio: config.ratio || '3:4',
+                    imageSize: config.quality || '1K',
+                  },
+                  ...(systemInstruction ? { systemInstruction } : {}),
+                  safetySettings: [
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
+                  ] as SafetySetting[]
+                }
+              });
             },
-            config: {
-              imageConfig: {
-                // Map aspect ratio: Gemini accepts both '3:4' format and 'PORTRAIT' enum
-                // We pass the value as-is since Gemini API supports both formats
-                aspectRatio: config.ratio || '3:4',
-                imageSize: config.quality || '1K',
-              },
-              ...(systemInstruction ? { systemInstruction } : {}),
-              safetySettings: [
-                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
-              ] as SafetySetting[]
+            {
+              operation: 'generateImage',
+              imageCount: selectedImages.length,
+              hasReference: !!config.referenceImage,
+              trend: config.trend,
+              quality: config.quality,
+              userId: user.id?.substring(0, 8) + '...',
             }
-          });
-        },
-        {
-          operation: 'generateImage',
-          imageCount: selectedImages.length,
-          hasReference: !!config.referenceImage,
-          trend: config.trend,
-          quality: config.quality,
-          userId: user.id?.substring(0, 8) + '...',
-        }
-      );
+          );
 
-      // Extract image
-      let generatedImageBase64: string | null = null;
-      for (const part of geminiResponse.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) {
-          generatedImageBase64 = part.inlineData.data || null;
-          break;
-        }
-      }
+          // Extract image from response
+          let generatedImageBase64: string | null = null;
+          for (const part of geminiResponse.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+              generatedImageBase64 = part.inlineData.data || null;
+              break;
+            }
+          }
 
-      if (!generatedImageBase64) {
-        const errorMsg = geminiResponse.candidates?.[0]?.finishReason === 'SAFETY' 
+          if (!generatedImageBase64) {
+            const errorMsg = geminiResponse.candidates?.[0]?.finishReason === 'SAFETY' 
+              ? 'Safety filter triggered'
+              : 'No image generated';
+            return { success: false, error: errorMsg };
+          }
+
+          return { 
+            success: true, 
+            imageUrl: `data:image/png;base64,${generatedImageBase64}` 
+          };
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          return { success: false, error: errorMsg };
+        }
+      };
+
+      // Generate images in parallel
+      logger.logApiInfo('Starting parallel generation', { imageCount });
+      
+      const generationPromises = Array(imageCount).fill(null).map(() => generateSingleImage());
+      const results = await Promise.all(generationPromises);
+      
+      // Process results
+      const successfulImages = results
+        .filter((r): r is GenerationAttemptResult & { success: true; imageUrl: string } => r.success && !!r.imageUrl)
+        .map(r => ({ imageUrl: r.imageUrl, status: 'success' as const }));
+      
+      const failedImages = results
+        .filter(r => !r.success)
+        .map(r => ({ imageUrl: '', status: 'failed' as const, error: r.error }));
+
+      logger.logApiInfo('Parallel generation completed', {
+        requested: imageCount,
+        successful: successfulImages.length,
+        failed: failedImages.length,
+      });
+
+      // If all images failed, refund tokens
+      if (successfulImages.length === 0) {
+        const errorMsg = failedImages[0]?.error?.includes('Safety') 
           ? 'Нейросеть посчитала запрос небезопасным (Safety Filter). Попробуйте выбрать другой стиль или фото.'
-          : 'Не удалось сгенерировать изображение. Токены возвращены.';
+          : 'Не удалось сгенерировать изображения. Токены возвращены.';
         
         // Update generation record with failed status
         if (generationId) {
@@ -306,26 +365,32 @@ export default async function handler(
         
         // Refund tokens only if they were spent (not free generation)
         if (!useFreeGeneration) {
-          await TokenService.addTokens(user.id, tokenCost, 'refund', 
-            geminiResponse.candidates?.[0]?.finishReason === 'SAFETY' 
-              ? 'Refund: Safety filter' 
-              : 'Refund: Generation failed'
-          );
+          await TokenService.addTokens(user.id, tokenCost, 'refund', 'Refund: All generations failed');
         }
         
-        return response.status(
-          geminiResponse.candidates?.[0]?.finishReason === 'SAFETY' ? 400 : 500
-        ).json(
-          errorResponse(errorMsg, 
-            geminiResponse.candidates?.[0]?.finishReason === 'SAFETY' ? 400 : 500, 
-            undefined, 
-            requestOrigin
-          )
+        return response.status(500).json(
+          errorResponse(errorMsg, 500, undefined, requestOrigin)
         );
       }
 
-      // Return generated image as data URL
-      const imageDataUrl = `data:image/png;base64,${generatedImageBase64}`;
+      // Partial refund if some images failed
+      if (failedImages.length > 0 && !useFreeGeneration) {
+        // Calculate proportional refund based on failed images
+        const refundRatio = failedImages.length / imageCount;
+        const refundAmount = Math.floor(tokenCost * refundRatio);
+        if (refundAmount > 0) {
+          await TokenService.addTokens(
+            user.id, 
+            refundAmount, 
+            'refund', 
+            `Partial refund: ${failedImages.length}/${imageCount} failed`
+          );
+          logger.logApiInfo('Partial refund issued', { refundAmount, failed: failedImages.length });
+        }
+      }
+
+      // Use first successful image as primary for backward compatibility
+      const primaryImageUrl = successfulImages[0]?.imageUrl;
 
       // Update generation record with completed status
       if (generationId) {
@@ -333,7 +398,7 @@ export default async function handler(
           await sql`
             UPDATE generations 
             SET status = 'completed', 
-                image_url = ${imageDataUrl},
+                image_url = ${primaryImageUrl},
                 updated_at = NOW()
             WHERE id = ${generationId}
           `;
@@ -345,14 +410,26 @@ export default async function handler(
       // Get current token balance for response
       const currentTokensInfo = await TokenService.getTokenInfo(user.id);
       
+      // Return all images in the response
       return response.status(200).json(
         successResponse({
-          imageUrl: imageDataUrl,
+          // Primary image for backward compatibility
+          imageUrl: primaryImageUrl,
+          // All generated images
+          images: [
+            ...successfulImages,
+            ...failedImages.map(f => ({ imageUrl: '', status: 'failed' as const, error: f.error }))
+          ],
           generationId: generationId,
           tokens: {
-            spent: useFreeGeneration ? 0 : tokenCost,
+            spent: useFreeGeneration ? 0 : tokenCost - (failedImages.length > 0 ? Math.floor(tokenCost * (failedImages.length / imageCount)) : 0),
             remaining: currentTokensInfo.balance,
           },
+          stats: {
+            requested: imageCount,
+            successful: successfulImages.length,
+            failed: failedImages.length,
+          }
         }, undefined, requestOrigin)
       );
     } catch (error: unknown) {

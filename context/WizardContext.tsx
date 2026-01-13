@@ -17,7 +17,8 @@ interface WizardContextType {
 const defaultConfig: GenerationConfig = {
   trend: TrendType.MAGAZINE,
   ratio: AspectRatio.PORTRAIT,
-  quality: ImageQuality.STD // Changed to 1K by default
+  quality: ImageQuality.STD, // Changed to 1K by default
+  imageCount: 1 // Default to generating 1 image
 };
 
 const WizardContext = createContext<WizardContextType | undefined>(undefined);

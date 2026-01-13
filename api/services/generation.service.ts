@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 import type { ImageWithQuality } from '../types/images.js';
 import { getTrendPrompt } from '../../prompts/trendPrompts.js';
 import { sanitizePrompt } from '../../utils/validation.js';
-import { getTokenCost } from '../../shared/constants.js';
+import { getTokenCost, getBatchTokenCost, getBatchDiscount } from '../../shared/constants.js';
 import { TrendType } from '../../types.js';
 import type { ImageGenerationRequestBody } from '../utils/validation.js';
 
@@ -101,17 +101,31 @@ export function buildGenerationPrompt(
     ${mainPrompt}
     
     CRITICAL EXECUTION:
-    1. FACE: Must look exactly like the user (first ${selectedImagesCount} images).
-    2. QUALITY: Cinematic, detailed, expensive.
+    1. OUTPUT: Generate exactly ONE single image. DO NOT create collages, grids, multiple photos, or image compositions. The output must be a single unified photograph.
+    2. FACE: Must look exactly like the user (first ${selectedImagesCount} images are reference photos of the SAME person - use them to understand facial features, NOT to create multiple images).
+    3. QUALITY: Cinematic, detailed, expensive.
   `;
 
   return { systemInstruction, mainPrompt, finalPrompt };
 }
 
 /**
- * Calculate token cost for quality
+ * Calculate token cost for quality (single image)
  */
 export function calculateTokenCost(quality: string): number {
   return getTokenCost(quality);
 }
 
+/**
+ * Calculate token cost for batch generation (with progressive discount)
+ */
+export function calculateBatchTokenCost(quality: string, imageCount: number): number {
+  return getBatchTokenCost(quality, imageCount);
+}
+
+/**
+ * Get discount percentage for batch
+ */
+export function getDiscountForBatch(imageCount: number): number {
+  return getBatchDiscount(imageCount);
+}

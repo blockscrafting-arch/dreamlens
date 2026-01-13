@@ -69,6 +69,7 @@ export interface ImageGenerationRequestBody {
     quality: '1K' | '2K' | '4K';
     ratio: 'PORTRAIT' | 'LANDSCAPE' | 'SQUARE';
     trend: string;
+    imageCount?: number; // 1-5, number of images to generate (default: 1)
     userPrompt?: string;
     refinementText?: string;
     referenceImage?: {
@@ -151,6 +152,16 @@ export function validateImageGenerationRequest(body: unknown): body is ImageGene
   // Validate refinementText length if provided
   if (config.refinementText && typeof config.refinementText === 'string' && config.refinementText.length > MAX_STRING_LENGTH) {
     return false;
+  }
+
+  // Validate imageCount if provided (must be 1-5)
+  if (config.imageCount !== undefined) {
+    if (typeof config.imageCount !== 'number') {
+      return false;
+    }
+    if (!Number.isInteger(config.imageCount) || config.imageCount < 1 || config.imageCount > 5) {
+      return false;
+    }
   }
 
   return true;
