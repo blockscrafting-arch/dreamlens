@@ -199,17 +199,23 @@ async function handlePreCheckoutQuery(
 }
 
 /**
- * Verify webhook secret (optional, for additional security)
+ * Verify webhook secret (required in production)
  */
 function verifyWebhookSecret(request: VercelRequest): boolean {
-  const secret = request.headers['x-telegram-bot-api-secret-token'] as string | undefined;
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
 
+  // In production, secret MUST be configured
+  if (process.env.NODE_ENV === 'production' && !expectedSecret) {
+    logger.error('CRITICAL: TELEGRAM_WEBHOOK_SECRET not configured in production!');
+    return false; // Deny all requests if secret not configured in production
+  }
+
+  // In development, allow requests without secret for easier testing
   if (!expectedSecret) {
-    // If no secret is configured, allow all requests (not recommended for production)
     return true;
   }
 
+  const secret = request.headers['x-telegram-bot-api-secret-token'] as string | undefined;
   return secret === expectedSecret;
 }
 

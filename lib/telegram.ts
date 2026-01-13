@@ -42,32 +42,14 @@ export function initTelegramWebApp(): void {
  */
 export function getTelegramInitData(): string | null {
   try {
-    // Try multiple ways to get initData
-    // Method 1: Direct from @twa-dev/sdk WebApp instance
     if (typeof window !== 'undefined') {
-      // @twa-dev/sdk exports WebApp as default, try to access it
       const webApp = window.Telegram?.WebApp;
       if (webApp) {
-        const initData = webApp.initData || webApp.initDataRaw || null;
-        console.log('[Telegram] Got initData from window.Telegram.WebApp', {
-          hasInitData: !!initData,
-          initDataLength: initData?.length || 0,
-          hasInitDataRaw: !!webApp.initDataRaw,
-        });
-        return initData || null;
+        return webApp.initData || webApp.initDataRaw || null;
       }
-      
-      // Method 2: Try to access via @twa-dev/sdk directly (if available)
-      // Note: @twa-dev/sdk may not expose initDataRaw directly in browser
-      console.log('[Telegram] window.Telegram not available', {
-        hasWindow: typeof window !== 'undefined',
-        hasTelegram: !!window.Telegram,
-        hasWebApp: !!window.Telegram?.WebApp,
-      });
     }
     return null;
-  } catch (error) {
-    console.error('[Telegram] Error getting Telegram initData:', error);
+  } catch {
     return null;
   }
 }
@@ -90,15 +72,5 @@ export function isTelegramWebApp(): boolean {
     return false;
   }
   
-  // Check multiple ways Telegram might be available
-  const hasTelegram = !!window.Telegram?.WebApp;
-  const hasInitData = !!window.Telegram?.WebApp?.initData;
-  
-  console.log('[Telegram] isTelegramWebApp check', {
-    hasTelegram,
-    hasInitData,
-    userAgent: navigator.userAgent?.substring(0, 50),
-  });
-  
-  return hasTelegram;
+  return !!window.Telegram?.WebApp;
 }

@@ -307,16 +307,11 @@ export async function ensureWelcomeBonusAtomic(
   const bonusAmount = (userType === 'clerk' || userType === 'telegram') ? 5 : 0;
   const bonusDescription = (userType === 'clerk' || userType === 'telegram') ? 'Welcome bonus' : 'Welcome Pack (anonymous)';
 
-  // Diagnostic logging for welcome bonus issues
-  console.log(`[WelcomeBonus] Starting for user ${userId?.substring(0, 8)}..., type: ${userType}, bonusAmount: ${bonusAmount}`);
-
   // Fast path: Check if tokens record exists (uses cache)
   const tokenBalance = await getTokenBalance(userId);
-  console.log(`[WelcomeBonus] Token balance check: ${tokenBalance !== null ? 'exists' : 'not found'}, balance: ${tokenBalance}`);
   
   // If tokens record doesn't exist, create it (only for old users)
   if (!tokenBalance) {
-    console.log(`[WelcomeBonus] Creating token record for user ${userId?.substring(0, 8)}...`);
     await getOrCreateTokenBalance(userId);
   }
 
@@ -325,11 +320,8 @@ export async function ensureWelcomeBonusAtomic(
     ? await hasReceivedWelcomeBonus(userId)
     : await hasReceivedWelcomePack(userId);
 
-  console.log(`[WelcomeBonus] Has bonus already: ${hasBonus}`);
-
   // If bonus already received or amount is 0, return immediately (no write operations)
   if (hasBonus || bonusAmount === 0) {
-    console.log(`[WelcomeBonus] Skipping bonus award - hasBonus: ${hasBonus}, bonusAmount: ${bonusAmount}`);
     return { 
       success: true, 
       bonusAwarded: false 
@@ -372,8 +364,6 @@ export async function ensureWelcomeBonusAtomic(
   `;
 
   const bonusAwarded = result.rows[0]?.bonus_awarded === true;
-
-  console.log(`[WelcomeBonus] Bonus awarded: ${bonusAwarded} for user ${userId?.substring(0, 8)}...`);
 
   return { 
     success: true, 

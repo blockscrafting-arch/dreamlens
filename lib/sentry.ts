@@ -24,8 +24,9 @@ export function initSentry() {
         blockAllMedia: true,
       }),
     ],
-    tracesSampleRate: 1.0, // Adjust in production
-    replaysSessionSampleRate: 0.1,
+    // Reduce sample rates in production to save Sentry quota
+    tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+    replaysSessionSampleRate: import.meta.env.PROD ? 0.05 : 0.1,
     replaysOnErrorSampleRate: 1.0,
   });
 }

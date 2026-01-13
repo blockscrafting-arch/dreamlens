@@ -110,17 +110,8 @@ export default async function handler(
 
     const { userImages, config } = body;
 
-    // Validate trend against enum
-    if (!Object.values(TrendType).includes(config.trend as TrendType)) {
-      return response.status(400).json(
-        errorResponse('Неверный тип стиля', 400, undefined, requestOrigin)
-      );
-    }
-    
     // Validate trend against TrendType enum
-    const trendType = config.trend as any;
-    const isValidTrend = Object.values(TrendType).includes(trendType);
-    if (!isValidTrend) {
+    if (!Object.values(TrendType).includes(config.trend as TrendType)) {
       return response.status(400).json(
         errorResponse('Неверный тип стиля', 400, undefined, requestOrigin)
       );
