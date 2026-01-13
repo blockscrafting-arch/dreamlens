@@ -40,18 +40,18 @@ export function getTokenCost(quality: string | undefined | null): number {
 /**
  * Batch multipliers for generating multiple images
  * Progressive discount: the more images, the cheaper per image
- * 1 image = 1.0x (base price)
- * 2 images = 1.8x (10% discount)
- * 3 images = 2.4x (20% discount)
- * 4 images = 2.8x (30% discount)
- * 5 images = 3.0x (40% discount)
+ * 1 image = 1.0x (base price, 0% discount)
+ * 2 images = 1.9x (5% discount)
+ * 3 images = 2.7x (10% discount)
+ * 4 images = 3.4x (15% discount)
+ * 5 images = 4.0x (20% discount)
  */
 export const BATCH_MULTIPLIERS: Record<number, number> = {
   1: 1.0,
-  2: 1.8,
-  3: 2.4,
-  4: 2.8,
-  5: 3.0,
+  2: 1.9, // 5% скидка
+  3: 2.7, // 10% скидка
+  4: 3.4, // 15% скидка
+  5: 4.0, // 20% скидка
 };
 
 /**

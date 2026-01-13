@@ -9,7 +9,7 @@ import { trackConversion } from '@/lib/analytics';
 import { uploadToCDN } from '@/lib/storage';
 import { Button } from '@/components/ui/Button';
 import { useApiRequest } from '@/lib/api';
-import { GeneratedResult, GeneratedImage } from '@/types';
+import { GeneratedResult, GeneratedImage, UserImage } from '@/types';
 import { getBatchTokenCost } from '@/shared/constants';
 import { useTelegramMainButton, useTelegramHaptics } from '@/hooks/useTelegram';
 import { isTelegramWebApp } from '@/lib/telegram';
@@ -35,7 +35,7 @@ const LOADING_MESSAGES = [
 ];
 
 export const GenerationStep: React.FC = () => {
-  const { userImages, config, result, setResult, resetWizard, setStep } = useWizard();
+  const { userImages, config, result, setResult, resetWizard, setStep, hasStartedGeneration, setHasStartedGeneration } = useWizard();
   const { tokens, refresh, canGenerate } = useTokens();
   const { showToast } = useToast();
   const apiRequest = useApiRequest();
@@ -48,6 +48,7 @@ export const GenerationStep: React.FC = () => {
   const [rateLimitError, setRateLimitError] = useState<string | null>(null);
   const [remainingRequests, setRemainingRequests] = useState(rateLimiter.getRemainingRequests());
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [lastUsedImages, setLastUsedImages] = useState<UserImage[]>([]);
   
   const refinementRef = useRef<HTMLDivElement>(null);
   const isTelegram = isTelegramWebApp();
@@ -169,6 +170,11 @@ export const GenerationStep: React.FC = () => {
     const quality = config.quality || '1K';
     const imageCount = config.imageCount || 1;
     const tokenCost = getBatchTokenCost(quality, imageCount);
+    // Определяем требуемое число людей (для пары показываем двоих, если фото ≥2)
+    const inferredPeople = config.trend === TrendType.COUPLE
+      ? ((userImages.length || lastUsedImages.length) >= 2 ? 2 : 1)
+      : (config.numberOfPeople || 1);
+    const sourceImages = userImages.length > 0 ? userImages : lastUsedImages;
     
     // Check if generation is possible (either free or with tokens)
     if (!canGenerate(quality)) {
@@ -186,6 +192,7 @@ export const GenerationStep: React.FC = () => {
     }
 
     setLoading(true);
+    setHasStartedGeneration(true);
     setError(null);
     setRateLimitError(null);
     
@@ -197,10 +204,15 @@ export const GenerationStep: React.FC = () => {
       // Prepare images as base64
       setLoadingMsg("Подготовка изображений...");
       
-      const sortedImages = [...userImages].sort((a, b) => b.qualityScore - a.qualityScore);
+      const sortedImages = [...sourceImages].sort((a, b) => b.qualityScore - a.qualityScore);
       let selectedImages = sortedImages.filter(img => img.qualityScore > 40).slice(0, 5);
       if (selectedImages.length < 3) {
         selectedImages = sortedImages.slice(0, 3);
+      }
+      if (selectedImages.length === 0) {
+        setError('Нет подходящих изображений для генерации. Загрузите фото заново.');
+        setLoading(false);
+        return;
       }
 
       // Process images with error handling
@@ -237,6 +249,9 @@ export const GenerationStep: React.FC = () => {
         return;
       }
 
+      // Сохраняем набор использованных изображений, чтобы регенерация не теряла лица
+      setLastUsedImages(selectedImages);
+
       // Prepare reference image if exists
       let referenceImageBase64: { base64: string; mimeType?: string } | undefined;
       if (config.referenceImage) {
@@ -261,6 +276,7 @@ export const GenerationStep: React.FC = () => {
             ...config,
             refinementText: refinement || config.refinementText,
             referenceImage: referenceImageBase64,
+            numberOfPeople: inferredPeople,
           },
         }),
       });
@@ -365,7 +381,7 @@ export const GenerationStep: React.FC = () => {
     let cancelled = false;
     
     // Only generate if we don't have a result yet and aren't loading
-    if (!result && !loading && !error) {
+    if (!result && !loading && !error && !hasStartedGeneration) {
       handleGenerate().catch((err: unknown) => {
         if (!cancelled) {
           console.error('Error in auto-generate:', err);
@@ -376,7 +392,7 @@ export const GenerationStep: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [result, loading, error, handleGenerate]);
+  }, [result, loading, error, hasStartedGeneration, handleGenerate]);
 
   const handleSubmitRefinement = (e: React.FormEvent) => {
       e.preventDefault();
@@ -433,6 +449,32 @@ export const GenerationStep: React.FC = () => {
           }
       }
   };
+
+  // Надёжное скачивание изображений (поддержка CDN и data URL)
+  const handleDownload = useCallback(async () => {
+    const currentImageUrl = getSelectedImageUrl();
+    if (!currentImageUrl) return;
+
+    try {
+      const response = await fetch(currentImageUrl);
+      if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `dreamlens-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      // Fallback для base64 / data URL
+      const link = document.createElement('a');
+      link.href = currentImageUrl;
+      link.download = `dreamlens-${Date.now()}.png`;
+      link.click();
+    }
+  }, [getSelectedImageUrl]);
 
   // Setup MainButton for loading state
   useEffect(() => {
@@ -642,10 +684,7 @@ export const GenerationStep: React.FC = () => {
                       <div className={`absolute ${isTelegram ? 'top-2 right-2' : 'top-4 right-4'} flex gap-2 z-20`}>
                         <button 
                           onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = currentImageUrl;
-                            link.download = `dreamlens-${Date.now()}.png`;
-                            link.click();
+                            handleDownload();
                           }}
                           className={`${isTelegram ? 'bg-white/80 p-2.5' : 'glass-md bg-white/90 p-3.5'} backdrop-blur-md text-gray-800 rounded-full shadow-premium hover:scale-110 hover:shadow-glow-md transition-all z-20`}
                           title="Скачать в HD"

@@ -51,13 +51,16 @@ const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, anima
         animate-fade-in-up group
         ${trend.gradient}
         ${isSelected 
-          ? 'ring-2 ring-white/60 shadow-xl scale-[1.02] z-10' 
-          : 'hover:shadow-lg hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]'
+          ? 'ring-2 ring-white/60 shadow-xl scale-[1.03] z-10' 
+          : 'hover:shadow-xl hover:scale-[1.05] hover:-translate-y-2 active:scale-[0.98]'
         }
       `}
       style={{
         animationDelay: `${animationDelay}ms`,
         animationFillMode: 'backwards',
+        transform: isHovered && !isSelected
+          ? 'perspective(900px) rotateX(2deg) rotateY(-2deg) scale(1.03)'
+          : undefined,
       }}
     >
       {/* Shimmer overlay for hot items */}
@@ -72,9 +75,18 @@ const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, anima
           ${isHovered && !isSelected ? 'opacity-100' : ''}
         `}
         style={{
-          background: 'radial-gradient(circle at center, rgba(255,255,255,0.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle at center, rgba(255,255,255,0.12) 0%, transparent 75%)',
         }}
       />
+      {/* Shimmer on hover */}
+      <div 
+        className={`
+          absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-300
+          ${isHovered ? 'opacity-70' : ''}
+        `}
+      >
+        <div className="style-card-shimmer" />
+      </div>
 
       {/* Selection pulse effect */}
       {isSelected && (
@@ -115,7 +127,7 @@ const StyleCard: React.FC<StyleCardProps> = ({ trend, isSelected, onClick, anima
           <span 
             className={`
               text-2xl sm:text-3xl ml-2 transition-transform duration-300
-              ${isHovered ? 'scale-110 rotate-12' : ''}
+              ${isHovered ? 'scale-115 rotate-12 animate-emoji-pop' : ''}
               ${isSelected ? 'animate-bounce' : ''}
             `}
           >
@@ -243,7 +255,10 @@ export const TrendStep: React.FC = () => {
   };
 
   const handleSelectTrend = (trendId: TrendType) => {
-      updateConfig({ trend: trendId });
+      updateConfig({ 
+        trend: trendId,
+        numberOfPeople: trendId === TrendType.COUPLE ? 2 : 1
+      });
       // Trigger haptic feedback
       if (isTelegram) {
         impactOccurred('medium');

@@ -12,13 +12,16 @@ interface WizardContextType {
   result: GeneratedResult | null;
   setResult: (res: GeneratedResult | null) => void;
   resetWizard: () => void;
+  hasStartedGeneration: boolean;
+  setHasStartedGeneration: (value: boolean) => void;
 }
 
 const defaultConfig: GenerationConfig = {
   trend: TrendType.MAGAZINE,
   ratio: AspectRatio.PORTRAIT,
   quality: ImageQuality.STD, // Changed to 1K by default
-  imageCount: 1 // Default to generating 1 image
+  imageCount: 1, // Default to generating 1 image
+  numberOfPeople: 1
 };
 
 const WizardContext = createContext<WizardContextType | undefined>(undefined);
@@ -28,6 +31,7 @@ export const WizardProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [userImages, setUserImages] = useState<UserImage[]>([]);
   const [config, setConfig] = useState<GenerationConfig>(defaultConfig);
   const [result, setResult] = useState<GeneratedResult | null>(null);
+  const [hasStartedGeneration, setHasStartedGeneration] = useState(false);
 
   const addUserImage = (img: UserImage) => {
     setUserImages(prev => {
@@ -50,6 +54,7 @@ export const WizardProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setUserImages([]);
     setConfig(defaultConfig);
     setResult(null);
+    setHasStartedGeneration(false);
   };
 
   return (
@@ -58,7 +63,9 @@ export const WizardProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       userImages, addUserImage, removeUserImage,
       config, updateConfig,
       result, setResult,
-      resetWizard
+      resetWizard,
+      hasStartedGeneration,
+      setHasStartedGeneration
     }}>
       {children}
     </WizardContext.Provider>

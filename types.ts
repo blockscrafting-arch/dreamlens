@@ -69,6 +69,7 @@ export interface GenerationConfig {
   ratio: AspectRatio;
   quality: ImageQuality;
   imageCount: number; // 1-5, number of images to generate
+  numberOfPeople?: number; // 1-4, поддержка парных/групповых кадров
   dominantColor?: string;
   userPrompt?: string;
   referenceImage?: File; // For drag and drop reference

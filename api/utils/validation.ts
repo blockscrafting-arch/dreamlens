@@ -77,6 +77,7 @@ export interface ImageGenerationRequestBody {
       mimeType?: string;
     };
     dominantColor?: string;
+    numberOfPeople?: number;
   };
 }
 
@@ -160,6 +161,16 @@ export function validateImageGenerationRequest(body: unknown): body is ImageGene
       return false;
     }
     if (!Number.isInteger(config.imageCount) || config.imageCount < 1 || config.imageCount > 5) {
+      return false;
+    }
+  }
+
+  // Validate numberOfPeople if provided (1-4)
+  if (config.numberOfPeople !== undefined) {
+    if (typeof config.numberOfPeople !== 'number') {
+      return false;
+    }
+    if (!Number.isInteger(config.numberOfPeople) || config.numberOfPeople < 1 || config.numberOfPeople > 4) {
       return false;
     }
   }
