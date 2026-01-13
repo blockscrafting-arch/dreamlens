@@ -247,9 +247,24 @@ export const UploadStep: React.FC = () => {
       />
 
       {/* Модуль готовности модели */}
-      <div className="mt-8">
+      <div className="mt-8 mb-12">
         <QualityMeter count={userImages.length} averageScore={avgScore} readiness={readiness} />
       </div>
+
+      {/* Web Next Button (Non-Telegram) */}
+      {!isTelegram && (
+        <div className="flex justify-center mt-10">
+          <Button
+            disabled={!canProceed || isProcessing}
+            onClick={() => setStep(2)}
+            className="w-full max-w-md py-4 text-lg bg-gradient-to-r from-brand-500 to-brand-600 shadow-glow-md"
+          >
+            {canProceed 
+              ? 'Далее: Выбрать стиль →' 
+              : `Загрузите еще ${Math.max(0, 3 - userImages.length)} фото`}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
