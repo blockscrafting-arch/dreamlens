@@ -378,10 +378,29 @@ export const GenerationStep: React.FC = () => {
   }, [config, userImages, tokens, refresh, apiRequest, isWorkerAvailable, resizeImageWorker, pollGenerationStatus, setResult, canGenerate]);
 
   useEffect(() => {
+    // Reset hasStartedGeneration on mount if we don't have a result yet,
+    // to ensure auto-generation can trigger if we just switched back to this tab
+    if (!result) {
+      setHasStartedGeneration(false);
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     
+    // DEBUG: Auto-generate conditions check
+    console.log('[GenerationStep] Auto-generate check:', {
+      hasResult: !!result,
+      isLoading: loading,
+      hasError: !!error,
+      hasStarted: hasStartedGeneration,
+      imagesCount: userImages.length,
+      lastUsedCount: lastUsedImages.length
+    });
+
     // Only generate if we don't have a result yet and aren't loading
     if (!result && !loading && !error && !hasStartedGeneration) {
+      console.log('[GenerationStep] Conditions met - starting handleGenerate');
       handleGenerate().catch((err: unknown) => {
         if (!cancelled) {
           console.error('Error in auto-generate:', err);
@@ -575,12 +594,6 @@ export const GenerationStep: React.FC = () => {
 
   // Если результата ещё нет, но загрузка завершена/не стартовала — показываем лоадер для защиты от пустого экрана
   if (!result) {
-    return renderLoader();
-  }
-
-  // Проверяем, что есть реальный URL изображения, иначе показываем лоадер
-  const currentImageUrl = getSelectedImageUrl();
-  if (!currentImageUrl) {
     return renderLoader();
   }
 
