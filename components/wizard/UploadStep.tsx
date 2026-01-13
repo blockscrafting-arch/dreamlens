@@ -6,6 +6,7 @@ import { validateFiles } from '../../utils/validation';
 import { QualityMeter } from '../ui/QualityMeter';
 import { PhotoUploadArea } from './PhotoUploadArea';
 import { PhotoPreviewGrid } from './PhotoPreviewGrid';
+import { Button } from '../ui/Button';
 import { useTelegramMainButton, useTelegramHaptics } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
 import { useImageWorker } from '../../hooks/useImageWorker';
@@ -159,8 +160,20 @@ export const UploadStep: React.FC = () => {
   // Minimum required to physically proceed. Lowered to 3 high quality ones.
   const canProceed = userImages.length >= 3 && readiness > 30;
 
+  // Debug environment
+  useEffect(() => {
+    console.log('[UploadStep] Environment check:', {
+      isTelegram,
+      imagesCount: userImages.length,
+      readiness,
+      canProceed,
+      isProcessing
+    });
+  }, [isTelegram, userImages.length, readiness, canProceed, isProcessing]);
+
   // Setup Telegram MainButton
   useEffect(() => {
+    // Only show Telegram button if we are REALLY in Telegram mobile app
     if (!isTelegram) return;
 
     if (canProceed && !isProcessing) {
@@ -187,7 +200,7 @@ export const UploadStep: React.FC = () => {
   // Note: Telegram BackButton is managed centrally in App.tsx to avoid conflicts
 
   return (
-    <div className="max-w-2xl mx-auto px-2 sm:px-4 py-6 overflow-hidden">
+    <div className="max-w-2xl mx-auto px-2 sm:px-4 py-6">
       
       {/* Simple Processing Overlay */}
       {isProcessing && (

@@ -211,6 +211,15 @@ export const TrendStep: React.FC = () => {
   const { show: showMainButton, hide: hideMainButton } = useTelegramMainButton();
   const { impactOccurred } = useTelegramHaptics();
 
+  // Debug environment
+  useEffect(() => {
+    console.log('[TrendStep] Environment check:', {
+      isTelegram,
+      hasTrend: !!config.trend,
+      trend: config.trend
+    });
+  }, [isTelegram, config.trend]);
+
   // Handle transition animation completion
   const handleTransitionComplete = useCallback(() => {
     setIsTransitioning(false);

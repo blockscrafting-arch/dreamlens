@@ -47,6 +47,17 @@ export const ConfigStep: React.FC = () => {
   const isTelegram = isTelegramWebApp();
   const { show: showMainButton, hide: hideMainButton, setLoading: setMainButtonLoading } = useTelegramMainButton();
   const { impactOccurred } = useTelegramHaptics();
+
+  // Debug environment
+  useEffect(() => {
+    console.log('[ConfigStep] Environment check:', {
+      isTelegram,
+      hasTrend: !!config.trend,
+      trend: config.trend,
+      quality: config.quality,
+      imageCount: config.imageCount
+    });
+  }, [isTelegram, config.trend, config.quality, config.imageCount]);
   
   // Cleanup reference image ObjectURL
   useEffect(() => {

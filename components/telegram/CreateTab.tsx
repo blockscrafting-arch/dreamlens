@@ -19,7 +19,7 @@ const StepLoader: React.FC = () => (
 );
 
 export const CreateTab: React.FC = () => {
-  const { step } = useWizard();
+  const { step, setStep, userImages, config } = useWizard();
   const [displayStep, setDisplayStep] = useState(step);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
   const [isAnimating, setIsAnimating] = useState(false);
@@ -66,13 +66,28 @@ export const CreateTab: React.FC = () => {
     }
   };
 
+  const canGoToStep = (targetStep: number) => {
+    if (targetStep < step) return true;
+    if (targetStep > 1 && userImages.length < 3) return false;
+    if (targetStep > 2 && !config.trend) return false;
+    return true;
+  };
+
+  const handleProgressClick = (targetStep: number) => {
+    if (canGoToStep(targetStep)) {
+      setStep(targetStep);
+    }
+  };
+
   return (
-    <div className="w-full max-w-6xl mx-auto overflow-hidden">
+    <div className="w-full max-w-6xl mx-auto">
       {/* Progress Bar - only in Telegram */}
       {isTelegram && (
         <WizardProgress 
           currentStep={step} 
           totalSteps={4}
+          onStepClick={handleProgressClick}
+          canGoToStep={canGoToStep}
         />
       )}
       
@@ -80,7 +95,7 @@ export const CreateTab: React.FC = () => {
         <div 
           key={displayStep}
           className={`
-            min-h-[70vh] relative overflow-hidden transition-all duration-300 ease-out
+            min-h-[70vh] relative transition-all duration-300 ease-out
             ${isAnimating 
               ? (direction === 'forward' ? 'animate-slide-in-right' : 'animate-slide-in-left')
               : ''
