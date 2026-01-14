@@ -123,12 +123,37 @@ async function uploadToSupabase(
   const filePath = `uploads/${userId}/${Date.now()}-${filename}`;
   const fileBody = typeof file === 'string' ? Buffer.from(file.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64') : file;
 
+  // #region agent log
+  console.log('[DEBUG-SUPABASE-UPLOAD] Starting upload:', {
+    filePath,
+    fileSize: fileBody.length,
+    bucket: SUPABASE_BUCKET_NAME,
+    mimeType: mimeType || 'image/png',
+    url: SUPABASE_URL
+  });
+  // #endregion
+
   const { data, error } = await supabase.storage
     .from(SUPABASE_BUCKET_NAME)
     .upload(filePath, fileBody, {
       contentType: mimeType || 'image/png',
       upsert: true
     });
+
+  // #region agent log
+  if (error) {
+    console.error('[DEBUG-SUPABASE-UPLOAD] Upload error:', {
+      errorName: error.name,
+      errorMessage: error.message,
+      errorStatus: (error as any).statusCode,
+      errorDetails: JSON.stringify(error)
+    });
+  } else {
+    console.log('[DEBUG-SUPABASE-UPLOAD] Upload success:', {
+      path: data?.path
+    });
+  }
+  // #endregion
 
   if (error) {
     throw error;
