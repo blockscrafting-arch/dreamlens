@@ -24,6 +24,7 @@ import uploadHandler from './api/storage/upload.js';
 import deleteHandler from './api/storage/delete.js';
 import cleanupHandler from './api/storage/cleanup.js';
 import userUploadsHandler from './api/user/uploads.js';
+import migrateHotfixHandler from './api/admin/migrate-hotfix.js';
 
 // Environment variables validation
 function validateEnv() {
@@ -154,6 +155,7 @@ app.post('/api/storage/upload', upload.single('file'), adaptHandler(uploadHandle
 app.all('/api/storage/upload', adaptHandler(uploadHandler));
 app.all('/api/storage/delete', adaptHandler(deleteHandler));
 app.all('/api/storage/cleanup', adaptHandler(cleanupHandler));
+app.all('/api/admin/migrate-hotfix', adaptHandler(migrateHotfixHandler));
 app.all('/api/init-db', adaptHandler(initDbHandler));
 
 // Serve static files from dist folder (go up from dist-server to project root)

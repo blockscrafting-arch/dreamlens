@@ -3,6 +3,8 @@
  * Supports Cloudflare R2 and Vercel Blob Storage
  */
 
+import { apiRequest } from './api';
+
 const STORAGE_TYPE = (import.meta.env.VITE_STORAGE_TYPE || 'supabase').toLowerCase();
 
 /**
@@ -69,7 +71,7 @@ async function uploadToVercelBlob(
     if (qualityScore !== undefined) formData.append('qualityScore', String(qualityScore));
     if (mimeType !== undefined) formData.append('mimeType', mimeType);
 
-    const response = await fetch('/api/storage/upload?provider=blob', {
+    const response = await apiRequest('/api/storage/upload?provider=blob', {
       method: 'POST',
       body: formData,
     });
@@ -122,7 +124,7 @@ async function uploadToCloudflareR2(
     if (qualityScore !== undefined) formData.append('qualityScore', String(qualityScore));
     if (mimeType !== undefined) formData.append('mimeType', mimeType);
 
-    const response = await fetch('/api/storage/upload?provider=r2', {
+    const response = await apiRequest('/api/storage/upload?provider=r2', {
       method: 'POST',
       body: formData,
     });
@@ -173,7 +175,7 @@ async function uploadToSupabase(
     if (qualityScore !== undefined) formData.append('qualityScore', String(qualityScore));
     if (mimeType !== undefined) formData.append('mimeType', mimeType);
 
-    const response = await fetch('/api/storage/upload?provider=supabase', {
+    const response = await apiRequest('/api/storage/upload?provider=supabase', {
       method: 'POST',
       body: formData,
     });
@@ -203,11 +205,8 @@ async function uploadToSupabase(
  */
 export async function deleteFromCDN(url: string): Promise<void> {
   try {
-    await fetch('/api/storage/delete', {
+    await apiRequest('/api/storage/delete', {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ url }),
     });
   } catch (error) {

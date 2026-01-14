@@ -20,18 +20,30 @@ export async function apiRequest(
   // Get auth headers (Telegram initData or device ID)
   const authHeaders = await getAuthHeaders();
   
+  // Check if body is FormData - if so, don't set Content-Type (browser will set it with boundary)
+  const isFormData = options.body instanceof FormData;
+  
   // Extract and set headers properly
   if (typeof authHeaders === 'object' && authHeaders !== null) {
     if (Array.isArray(authHeaders)) {
       // HeadersInit as array of [key, value] tuples
       authHeaders.forEach((entry) => {
         if (Array.isArray(entry) && entry.length >= 2) {
-          headers.set(entry[0] as string, entry[1] as string);
+          const key = entry[0] as string;
+          // Skip Content-Type for FormData - browser will set it automatically
+          if (key === 'Content-Type' && isFormData) {
+            return;
+          }
+          headers.set(key, entry[1] as string);
         }
       });
     } else {
       // HeadersInit as Record<string, string>
       Object.entries(authHeaders).forEach(([key, value]) => {
+        // Skip Content-Type for FormData - browser will set it automatically
+        if (key === 'Content-Type' && isFormData) {
+          return;
+        }
         headers.set(key, value as string);
       });
     }
