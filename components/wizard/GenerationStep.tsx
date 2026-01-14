@@ -679,14 +679,17 @@ export const GenerationStep: React.FC = () => {
         >
           {error}
         </p>
-        {!isTelegram && (
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Button variant="secondary" onClick={() => setStep(3)}>Изменить настройки</Button>
-              <Button onClick={() => handleGenerate()} className="shadow-glow-lg">Попробовать снова</Button>
-          </div>
-        )}
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+            {!isTelegram && <Button variant="secondary" onClick={() => setStep(3)}>Изменить настройки</Button>}
+            <Button onClick={() => handleGenerate()} className="shadow-glow-lg">Попробовать снова</Button>
+        </div>
       </div>
     );
+  }
+
+  // Final check to prevent rendering empty result
+  if (!getSelectedImageUrl() && !loading) {
+    return renderLoader();
   }
 
   return (
@@ -724,6 +727,7 @@ export const GenerationStep: React.FC = () => {
       {(() => {
         const successfulImages = result?.images?.filter(img => img.status === 'success') || [];
         const hasMultipleImages = successfulImages.length > 1;
+        const currentImageUrl = getSelectedImageUrl();
         
         return (
           <>
