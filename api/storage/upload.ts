@@ -193,6 +193,9 @@ export default async function handler(
     if (provider === 'supabase') {
       // Upload to Supabase
       if (!supabase) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/e7a5ad27-a173-4a22-9e90-9b81c3161ee4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/storage/upload.ts:182',message:'Supabase client not initialized',data:{hasUrl:!!SUPABASE_URL,hasKey:!!SUPABASE_SERVICE_ROLE_KEY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
         return response.status(500).json(
           errorResponse('Supabase storage not configured', 500)
         );
@@ -201,6 +204,10 @@ export default async function handler(
       const fileData = (typeof file === 'object' && file !== null && 'data' in file) 
         ? (file as any).data 
         : file;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/e7a5ad27-a173-4a22-9e90-9b81c3161ee4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/storage/upload.ts:192',message:'Starting Supabase upload',data:{filename,userId:auth.userId,keyLength:SUPABASE_SERVICE_ROLE_KEY?.length,keyStart:SUPABASE_SERVICE_ROLE_KEY?.substring(0,5),serverTime:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
         
       url = await uploadToSupabase(fileData, filename, auth.userId, mimeType || undefined);
       filePath = url; // In Supabase case, URL is fine to store
