@@ -154,11 +154,25 @@ export default async function handler(
     // Note: VercelRequest doesn't have files/body typed, so we need to access them safely
     const requestBody = request.body as { file?: unknown; qualityScore?: string | number; mimeType?: string } | undefined;
     const requestFiles = (request as { files?: { file?: unknown } }).files;
-    const file = requestFiles?.file || requestBody?.file;
+    const multerFile = (request as any).file;
+    
+    // Support both Vercel (files/body) and Express/Multer (file)
+    let file = multerFile || requestFiles?.file || requestBody?.file;
+    
     if (!file) {
       return response.status(400).json(
         errorResponse('No file provided', 400)
       );
+    }
+
+    // If it's a multer file, normalize it to match the expected structure
+    if (multerFile && !('data' in file) && multerFile.buffer) {
+      file = {
+        data: multerFile.buffer,
+        name: multerFile.originalname,
+        type: multerFile.mimetype,
+        size: multerFile.size
+      };
     }
 
     const qualityScore = requestBody?.qualityScore ? parseInt(String(requestBody.qualityScore), 10) : null;

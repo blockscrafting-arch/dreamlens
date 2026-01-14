@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
 
 // API handlers
 import generateImage from './api/generate/image.js';
@@ -19,6 +20,10 @@ import telegramWebhook from './api/payments/telegram-webhook.js';
 import telegramStars from './api/payments/telegram-stars.js';
 import generationsHandler from './api/generations/index.js';
 import initDbHandler from './api/init-db/index.js';
+import uploadHandler from './api/storage/upload.js';
+import deleteHandler from './api/storage/delete.js';
+import cleanupHandler from './api/storage/cleanup.js';
+import userUploadsHandler from './api/user/uploads.js';
 
 // Environment variables validation
 function validateEnv() {
@@ -44,6 +49,14 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
 
 // CORS configuration with allowed origins from env
 // Normalize origins: trim whitespace and remove trailing slashes
@@ -130,12 +143,17 @@ app.all('/api/generate/status', adaptHandler(generateStatus));
 app.all('/api/tokens', adaptHandler(tokensHandler));
 app.all('/api/tokens/*', adaptHandler(tokensHandler));
 app.all('/api/user', adaptHandler(userHandler));
+app.all('/api/user/uploads', adaptHandler(userUploadsHandler));
 app.all('/api/user/*', adaptHandler(userHandler));
 app.all('/api/health', adaptHandler(healthHandler));
 app.all('/api/payments/telegram-webhook', adaptHandler(telegramWebhook));
 app.all('/api/payments/telegram-stars', adaptHandler(telegramStars));
 app.all('/api/generations', adaptHandler(generationsHandler));
 app.all('/api/generations/*', adaptHandler(generationsHandler));
+app.post('/api/storage/upload', upload.single('file'), adaptHandler(uploadHandler));
+app.all('/api/storage/upload', adaptHandler(uploadHandler));
+app.all('/api/storage/delete', adaptHandler(deleteHandler));
+app.all('/api/storage/cleanup', adaptHandler(cleanupHandler));
 app.all('/api/init-db', adaptHandler(initDbHandler));
 
 // Serve static files from dist folder (go up from dist-server to project root)
