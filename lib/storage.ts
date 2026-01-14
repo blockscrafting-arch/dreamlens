@@ -57,12 +57,16 @@ async function uploadToVercelBlob(
     const formData = new FormData();
     
     if (typeof imageData === 'string') {
-      // Convert base64 to blob
-      const response = await fetch(imageData);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`);
+      // Manual conversion of base64 to Blob to bypass CSP connect-src data: check
+      const base64Data = imageData.split(',')[1] || imageData;
+      const type = imageData.split(',')[0].split(':')[1]?.split(';')[0] || 'image/png';
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
-      const blob = await response.blob();
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type });
       formData.append('file', blob, filename || 'generation.png');
     } else {
       formData.append('file', imageData, filename || 'generation.png');
@@ -111,11 +115,16 @@ async function uploadToCloudflareR2(
     const formData = new FormData();
     
     if (typeof imageData === 'string') {
-      const response = await fetch(imageData);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`);
+      // Manual conversion of base64 to Blob to bypass CSP connect-src data: check
+      const base64Data = imageData.split(',')[1] || imageData;
+      const type = imageData.split(',')[0].split(':')[1]?.split(';')[0] || 'image/png';
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
-      const blob = await response.blob();
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type });
       formData.append('file', blob, filename || 'generation.png');
     } else {
       formData.append('file', imageData, filename || 'generation.png');
@@ -162,11 +171,16 @@ async function uploadToSupabase(
     const formData = new FormData();
     
     if (typeof imageData === 'string') {
-      const response = await fetch(imageData);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`);
+      // Manual conversion of base64 to Blob to bypass CSP connect-src data: check
+      const base64Data = imageData.split(',')[1] || imageData;
+      const type = imageData.split(',')[0].split(':')[1]?.split(';')[0] || 'image/png';
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
-      const blob = await response.blob();
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type });
       formData.append('file', blob, filename || 'generation.png');
     } else {
       formData.append('file', imageData, filename || 'generation.png');

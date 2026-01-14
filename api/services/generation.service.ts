@@ -124,9 +124,7 @@ export function calculateTokenCost(quality: string): number {
  */
 export function calculateBatchTokenCost(quality: string, imageCount: number): number {
   return getBatchTokenCost(quality, imageCount);
-}
-
-/**
+}/**
  * Get discount percentage for batch
  */
 export function getDiscountForBatch(imageCount: number): number {

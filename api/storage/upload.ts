@@ -16,9 +16,18 @@ import { setCorsHeaders } from '../utils/cors.js';
 import { sql } from '../repositories/database.js';
 
 // Supabase configuration
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/$/, ''); // Remove trailing slash
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 const SUPABASE_BUCKET_NAME = process.env.SUPABASE_BUCKET_NAME || 'dreamlens';
+
+// Debug logging for Railway
+console.log('[DEBUG-SUPABASE] Config check:', {
+  hasUrl: !!SUPABASE_URL,
+  url: SUPABASE_URL,
+  keyLength: SUPABASE_SERVICE_ROLE_KEY?.length,
+  keyPrefix: SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10),
+  bucket: SUPABASE_BUCKET_NAME
+});
 
 const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)

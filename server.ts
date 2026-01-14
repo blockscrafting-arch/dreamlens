@@ -51,6 +51,22 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Content Security Policy
+app.use((req, res, next) => {
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://esm.sh https://fonts.googleapis.com https://cdn.jsdelivr.net https://correct-sunfish-97.clerk.accounts.dev https://*.clerk.accounts.dev https://*.clerk.com https://www.googletagmanager.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' data: https://supabase.n8nstarter.ru https://generativelanguage.googleapis.com https://*.googleapis.com https://api.clerk.com https://correct-sunfish-97.clerk.accounts.dev https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://*.sentry.io https://www.google-analytics.com https://www.googletagmanager.com",
+    "frame-src 'self' https://correct-sunfish-97.clerk.accounts.dev https://*.clerk.accounts.dev",
+    "worker-src 'self' blob:"
+  ].join('; ');
+  res.setHeader('Content-Security-Policy', csp);
+  next();
+});
+
 // Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
