@@ -8,10 +8,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createClient } from '@supabase/supabase-js';
 import { verifyAuth } from '../utils/auth.js';
 import { successResponse, errorResponse, unauthorizedResponse } from '../utils/response.js';
 import { logger } from '../utils/logger.js';
 import { setCorsHeaders } from '../utils/cors.js';
+import { sql } from '../repositories/database.js';
+
+// Supabase configuration
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_BUCKET_NAME = process.env.SUPABASE_BUCKET_NAME || 'dreamlens';
+
+const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 // Cloudflare R2 configuration
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -89,6 +100,38 @@ async function uploadToR2(
   return publicUrl;
 }
 
+// Upload to Supabase Storage
+async function uploadToSupabase(
+  file: Buffer | string,
+  filename: string,
+  userId: string,
+  mimeType?: string
+): Promise<string> {
+  if (!supabase) {
+    throw new Error('Supabase storage not configured');
+  }
+
+  const filePath = `uploads/${userId}/${Date.now()}-${filename}`;
+  const fileBody = typeof file === 'string' ? Buffer.from(file.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64') : file;
+
+  const { data, error } = await supabase.storage
+    .from(SUPABASE_BUCKET_NAME)
+    .upload(filePath, fileBody, {
+      contentType: mimeType || 'image/png',
+      upsert: true
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from(SUPABASE_BUCKET_NAME)
+    .getPublicUrl(data.path);
+
+  return publicUrl;
+}
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse
@@ -109,7 +152,7 @@ export default async function handler(
 
     // Get file from form data
     // Note: VercelRequest doesn't have files/body typed, so we need to access them safely
-    const requestBody = request.body as { file?: unknown } | undefined;
+    const requestBody = request.body as { file?: unknown; qualityScore?: string | number; mimeType?: string } | undefined;
     const requestFiles = (request as { files?: { file?: unknown } }).files;
     const file = requestFiles?.file || requestBody?.file;
     if (!file) {
@@ -117,6 +160,9 @@ export default async function handler(
         errorResponse('No file provided', 400)
       );
     }
+
+    const qualityScore = requestBody?.qualityScore ? parseInt(String(requestBody.qualityScore), 10) : null;
+    const mimeType = requestBody?.mimeType || null;
 
     // Type guard for file with name property
     const hasName = (f: unknown): f is { name?: string; [key: string]: unknown } => {
@@ -128,8 +174,24 @@ export default async function handler(
     const filename = (hasName(file) && file.name) ? file.name : 'generation.png';
 
     let url: string;
+    let filePath: string | null = null;
 
-    if (provider === 'r2') {
+    if (provider === 'supabase') {
+      // Upload to Supabase
+      if (!supabase) {
+        return response.status(500).json(
+          errorResponse('Supabase storage not configured', 500)
+        );
+      }
+      
+      const fileData = (typeof file === 'object' && file !== null && 'data' in file) 
+        ? (file as any).data 
+        : file;
+        
+      url = await uploadToSupabase(fileData, filename, auth.userId, mimeType || undefined);
+      filePath = url; // In Supabase case, URL is fine to store
+      logger.logApiInfo('uploadToSupabase', { userId: auth.userId, filename });
+    } else if (provider === 'r2') {
       // Upload to Cloudflare R2
       if (!s3Client || !R2_BUCKET_NAME) {
         return response.status(500).json(
@@ -145,6 +207,7 @@ export default async function handler(
           errorResponse('Invalid file format for R2 upload', 400)
         );
       }
+      filePath = `generations/${auth.userId}/${Date.now()}-${filename}`;
       url = await uploadToR2(file, filename, auth.userId);
       logger.logApiInfo('uploadToR2', { userId: auth.userId, filename });
     } else {
@@ -163,7 +226,23 @@ export default async function handler(
         );
       }
       url = await uploadToBlob(file, filename);
+      // For Vercel Blob, the URL itself is the identifier, but we can store it in filePath if needed
+      filePath = url;
       logger.logApiInfo('uploadToBlobStorage', { userId: auth.userId, filename });
+    }
+
+    // Save to database
+    try {
+      await sql`
+        INSERT INTO user_uploads (user_id, url, file_path, quality_score, mime_type)
+        VALUES (${auth.userId}, ${url}, ${filePath}, ${qualityScore}, ${mimeType})
+      `;
+    } catch (dbError) {
+      // Don't fail the upload if DB save fails, but log it
+      logger.logApiError('saveUploadToDb', dbError instanceof Error ? dbError : new Error(String(dbError)), {
+        userId: auth.userId,
+        url
+      });
     }
 
     return response.status(200).json(

@@ -14,6 +14,10 @@ interface WizardContextType {
   resetWizard: () => void;
   hasStartedGeneration: boolean;
   setHasStartedGeneration: (value: boolean) => void;
+  isGenerating: boolean;
+  setIsGenerating: (value: boolean) => void;
+  generationId: string | null;
+  setGenerationId: (id: string | null) => void;
 }
 
 const defaultConfig: GenerationConfig = {
@@ -32,6 +36,8 @@ export const WizardProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [config, setConfig] = useState<GenerationConfig>(defaultConfig);
   const [result, setResult] = useState<GeneratedResult | null>(null);
   const [hasStartedGeneration, setHasStartedGeneration] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationId, setGenerationId] = useState<string | null>(null);
 
   const addUserImage = (img: UserImage) => {
     setUserImages(prev => {
@@ -55,6 +61,8 @@ export const WizardProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setConfig(defaultConfig);
     setResult(null);
     setHasStartedGeneration(false);
+    setIsGenerating(false);
+    setGenerationId(null);
   };
 
   return (
@@ -65,7 +73,11 @@ export const WizardProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       result, setResult,
       resetWizard,
       hasStartedGeneration,
-      setHasStartedGeneration
+      setHasStartedGeneration,
+      isGenerating,
+      setIsGenerating,
+      generationId,
+      setGenerationId
     }}>
       {children}
     </WizardContext.Provider>

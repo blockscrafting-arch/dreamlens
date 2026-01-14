@@ -10,8 +10,11 @@ export const getTrendPrompt = (
   dominantColor?: string,
   userCustomText?: string,
   refinementText?: string,
-  hasReference?: boolean
+  hasReference?: boolean,
+  numberOfPeople: number = 1
 ): PromptResult => {
+
+  const peopleCount = Math.max(1, Math.min(4, Number(numberOfPeople) || 1));
 
   const colorInstruction = dominantColor 
     ? `COLOR GRADING: Dominant ${dominantColor} tones woven throughout the image, affecting shadows and highlights.` 
@@ -20,11 +23,12 @@ export const getTrendPrompt = (
   // Enhanced Identity Preservation
   const identityInstruction = `
 IDENTITY PRESERVATION (NON-NEGOTIABLE):
-1. FACE SOURCE: The first uploaded images contain the SUBJECT. Extract and preserve exact facial structure, eye shape, nose, lips, jawline.
-2. LIKENESS: The generated face MUST be immediately recognizable as the same person - not "similar to" but "is".
-3. SKIN: Maintain realistic skin texture with visible pores, natural imperfections, micro-details. NO plastic/airbrushed/AI-smooth skin.
-4. AGE ACCURACY: Preserve the subject's apparent age. Do not make them look older or younger.
-${hasReference ? '5. REFERENCE IMAGE: The LAST image is a STYLE REFERENCE ONLY. Copy pose, lighting, composition, clothing style - but NEVER the face. The face must come from the SUBJECT images.' : ''}
+1. FACE SOURCE: The uploaded images contain ${peopleCount > 1 ? `${peopleCount} SUBJECTS. Extract and preserve each distinct face separately.` : 'the SUBJECT. Extract and preserve exact facial structure, eye shape, nose, lips, jawline.'}
+2. LIKENESS: The generated face(s) MUST be immediately recognizable - not "similar to" but "is". No blending faces together.
+3. COUNT: Final photo must show exactly ${peopleCount} distinct person(s). No extra faces, no missing partner.
+4. SKIN: Maintain realistic skin texture with visible pores, natural imperfections, micro-details. NO plastic/airbrushed/AI-smooth skin.
+5. AGE ACCURACY: Preserve each subject's apparent age. Do not make them look older or younger.
+${hasReference ? '6. REFERENCE IMAGE: The LAST image is a STYLE REFERENCE ONLY. Copy pose, lighting, composition, clothing style - but NEVER the face. The face must come from the SUBJECT images.' : ''}
 `;
 
   // Professional Base System
@@ -33,9 +37,9 @@ You are a world-class fashion photographer with 20+ years of experience shooting
 Your work is known for: AUTHENTIC TEXTURE, EDITORIAL STORYTELLING, CINEMATIC LIGHTING, CONTEMPORARY EDGE.
 
 CRITICAL OUTPUT REQUIREMENT:
-- Generate EXACTLY ONE single photograph. 
+- Generate EXACTLY ONE single photograph.
 - NEVER create collages, grids, multi-panel images, or compositions with multiple photos.
-- The multiple input images are references of the SAME person - use them to understand the subject's face, NOT to create multiple images.
+- SUBJECT COUNT: The photo must show exactly ${peopleCount} distinct person(s) together. Do NOT merge faces or invent extra people.
 - Output must be ONE unified, cohesive photograph.
 
 ${identityInstruction}
@@ -124,7 +128,7 @@ ${colorInstruction}`;
 BRIEF: Film still from an unreleased Wong Kar-wai movie set in contemporary Tokyo/Hong Kong.
 CINEMATOGRAPHER REFERENCE: Christopher Doyle's color work in "In the Mood for Love".`;
       specificPrompt = `
-CONCEPT: "2AM Conversations" - Intimate moment between souls in a city that never sleeps.
+CONCEPT: "2AM Conversations" - Intimate moment between two people in a city that never sleeps.
 
 SCENE SETUP:
 - Location: Rain-slicked taxi interior OR neon-lit rooftop bar OR steamy late-night diner
@@ -143,10 +147,10 @@ LIGHTING:
 - Color: Heavy color cast - embrace the neon palette
 
 COMPOSITION:
-- Framing: Cinematic 2.39:1 aspect feel, letterbox mentality
+- Framing: Cinematic 2.39:1 aspect feel, letterbox mentality with BOTH faces visible
 - Focus: Shallow - subject sharp, background dreamy blur
 - Foreground elements: Raindrops on glass, cigarette smoke, reflections
-- Partner (if included): Soft focus, turned away, or just a silhouette
+- Partner: Fully present, natural pose, no silhouette. Show two distinct people together.
 
 MOOD: Melancholic romance, beautiful loneliness, cinematic intimacy, bittersweet
 ${colorInstruction}`;

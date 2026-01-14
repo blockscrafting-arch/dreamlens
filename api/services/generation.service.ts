@@ -82,6 +82,7 @@ export function buildGenerationPrompt(
 ): { systemInstruction?: string; mainPrompt: string; finalPrompt: string } {
   const sanitizedUserPrompt = config.userPrompt ? sanitizePrompt(config.userPrompt) : undefined;
   const sanitizedRefinement = config.refinementText ? sanitizePrompt(config.refinementText) : undefined;
+  const numberOfPeople = Math.max(1, Math.min(4, config.numberOfPeople ?? (config.trend === TrendType.COUPLE ? 2 : 1)));
   
   // Validate and convert trend string to TrendType
   const trendType = config.trend as TrendType;
@@ -94,7 +95,8 @@ export function buildGenerationPrompt(
     config.dominantColor,
     sanitizedUserPrompt,
     sanitizedRefinement,
-    !!config.referenceImage
+    !!config.referenceImage,
+    numberOfPeople
   );
 
   const finalPrompt = `
@@ -102,8 +104,9 @@ export function buildGenerationPrompt(
     
     CRITICAL EXECUTION:
     1. OUTPUT: Generate exactly ONE single image. DO NOT create collages, grids, multiple photos, or image compositions. The output must be a single unified photograph.
-    2. FACE: Must look exactly like the user (first ${selectedImagesCount} images are reference photos of the SAME person - use them to understand facial features, NOT to create multiple images).
-    3. QUALITY: Cinematic, detailed, expensive.
+    2. SUBJECT COUNT: The photo must show exactly ${numberOfPeople} distinct person(s). Do NOT merge faces. No extra people, no missing people.
+    3. FACE: Must look exactly like the uploaded subject(s) (first ${selectedImagesCount} images are reference photos - use them to understand each face).
+    4. QUALITY: Cinematic, detailed, expensive.
   `;
 
   return { systemInstruction, mainPrompt, finalPrompt };

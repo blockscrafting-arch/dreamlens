@@ -35,11 +35,23 @@ const LOADING_MESSAGES = [
 ];
 
 export const GenerationStep: React.FC = () => {
-  const { userImages, config, result, setResult, resetWizard, setStep, hasStartedGeneration, setHasStartedGeneration } = useWizard();
+  const { 
+    userImages, 
+    config, 
+    result, 
+    setResult, 
+    resetWizard, 
+    setStep, 
+    hasStartedGeneration, 
+    setHasStartedGeneration,
+    isGenerating,
+    setIsGenerating,
+    generationId,
+    setGenerationId
+  } = useWizard();
   const { tokens, refresh, canGenerate } = useTokens();
   const { showToast } = useToast();
   const apiRequest = useApiRequest();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMsg, setLoadingMsg] = useState("Подготовка студии...");
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -71,7 +83,7 @@ export const GenerationStep: React.FC = () => {
 
   useEffect(() => {
     let msgInterval: NodeJS.Timeout | null = null;
-    if (loading) {
+    if (isGenerating) {
         let i = 0;
         setLoadingMsg(LOADING_MESSAGES[0]);
         msgInterval = setInterval(() => {
@@ -82,7 +94,7 @@ export const GenerationStep: React.FC = () => {
     return () => {
       if (msgInterval) clearInterval(msgInterval);
     };
-  }, [loading]);
+  }, [isGenerating]);
 
   // Poll generation status until completed or failed
   const pollGenerationStatus = useCallback(async (generationId: string) => {
@@ -93,7 +105,8 @@ export const GenerationStep: React.FC = () => {
     const poll = async (): Promise<void> => {
       if (attempts >= maxAttempts) {
         setError('Генерация занимает слишком много времени. Попробуйте еще раз.');
-        setLoading(false);
+        setIsGenerating(false);
+        setGenerationId(null);
         return;
       }
 
@@ -138,12 +151,14 @@ export const GenerationStep: React.FC = () => {
           await refresh();
           
           setRefinementInput("");
-          setLoading(false);
+          setIsGenerating(false);
+          setGenerationId(null);
           return;
         } else if (status === 'failed') {
           // Generation failed
           setError(errorMessage || 'Генерация не удалась. Попробуйте еще раз.');
-          setLoading(false);
+          setIsGenerating(false);
+          setGenerationId(null);
           return;
         } else {
           // Still processing, continue polling
@@ -156,14 +171,15 @@ export const GenerationStep: React.FC = () => {
           setTimeout(poll, pollInterval);
         } else {
           setError('Не удалось проверить статус генерации. Попробуйте еще раз.');
-          setLoading(false);
+          setIsGenerating(false);
+          setGenerationId(null);
         }
       }
     };
 
     // Start polling
     await poll();
-  }, [apiRequest, config.trend, setResult, refresh]);
+  }, [apiRequest, config.trend, setResult, refresh, setIsGenerating, setGenerationId]);
 
   const handleGenerate = useCallback(async (refinement?: string) => {
     console.log('[GenerationStep] handleGenerate started', { refinement });
@@ -200,7 +216,7 @@ export const GenerationStep: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setIsGenerating(true);
     setHasStartedGeneration(true);
     setError(null);
     setRateLimitError(null);
@@ -229,7 +245,7 @@ export const GenerationStep: React.FC = () => {
 
       if (selectedImages.length === 0) {
         setError('Нет подходящих изображений для генерации. Загрузите фото заново.');
-        setLoading(false);
+        setIsGenerating(false);
         return;
       }
 
@@ -270,7 +286,7 @@ export const GenerationStep: React.FC = () => {
       
       if (validPreparedImages.length < 3) {
         setError(`Недостаточно изображений после обработки. Загрузите минимум 3 фото.`);
-        setLoading(false);
+        setIsGenerating(false);
         return;
       }
 
@@ -331,6 +347,7 @@ export const GenerationStep: React.FC = () => {
       if (generationId && !imageUrl && !images) {
         console.log('[GenerationStep] Starting polling for generation status...');
         setLoadingMsg("Ожидание завершения генерации...");
+        setGenerationId(generationId);
         await pollGenerationStatus(generationId);
         return;
       }
@@ -407,7 +424,8 @@ export const GenerationStep: React.FC = () => {
       await refresh();
       
       setRefinementInput(""); 
-      setLoading(false);
+      setIsGenerating(false);
+      setGenerationId(null);
 
     } catch (err: unknown) {
       console.error('[GenerationStep] CRITICAL ERROR during generation:', err);
@@ -417,17 +435,28 @@ export const GenerationStep: React.FC = () => {
         trend: config.trend,
       });
       setError(error.message || "Произошла ошибка при генерации. Попробуйте еще раз.");
-      setLoading(false);
+      setIsGenerating(false);
     }
-  }, [config, userImages, tokens, refresh, apiRequest, isWorkerAvailable, resizeImageWorker, pollGenerationStatus, setResult, canGenerate]);
+  }, [config, userImages, tokens, refresh, apiRequest, isWorkerAvailable, resizeImageWorker, pollGenerationStatus, setResult, canGenerate, setIsGenerating, setGenerationId, setHasStartedGeneration]);
 
   useEffect(() => {
-    // Reset hasStartedGeneration on mount if we don't have a result yet,
-    // to ensure auto-generation can trigger if we just switched back to this tab
-    if (!result) {
+    // Reset hasStartedGeneration on mount if we don't have a result yet
+    // and генерация сейчас не идёт — чтобы авто-генерация могла запуститься.
+    if (!result && !isGenerating) {
       setHasStartedGeneration(false);
     }
-  }, []);
+  }, [result, isGenerating, setHasStartedGeneration]);
+
+  // Если есть активная генерация (generationId) и ещё нет результата,
+  // при монтировании/возврате на шаг — возобновляем поллинг статуса.
+  useEffect(() => {
+    if (generationId && !result && isGenerating) {
+      console.log('[GenerationStep] Resuming polling for existing generationId:', generationId);
+      pollGenerationStatus(generationId).catch((err: unknown) => {
+        console.error('Error resuming generation polling:', err);
+      });
+    }
+  }, [generationId, result, isGenerating, pollGenerationStatus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -435,7 +464,7 @@ export const GenerationStep: React.FC = () => {
     // DEBUG: Auto-generate conditions check
     console.log('[GenerationStep] Auto-generate check:', {
       hasResult: !!result,
-      isLoading: loading,
+      isLoading: isGenerating,
       hasError: !!error,
       hasStarted: hasStartedGeneration,
       imagesCount: userImages.length,
@@ -443,7 +472,7 @@ export const GenerationStep: React.FC = () => {
     });
 
     // Only generate if we don't have a result yet and aren't loading
-    if (!result && !loading && !error && !hasStartedGeneration) {
+    if (!result && !isGenerating && !error && !hasStartedGeneration) {
       console.log('[GenerationStep] Conditions met - starting handleGenerate');
       handleGenerate().catch((err: unknown) => {
         if (!cancelled) {
@@ -455,7 +484,7 @@ export const GenerationStep: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [result, loading, error, hasStartedGeneration, handleGenerate]);
+  }, [result, isGenerating, error, hasStartedGeneration, handleGenerate, userImages.length, lastUsedImages.length]);
 
   const handleSubmitRefinement = (e: React.FormEvent) => {
       e.preventDefault();
@@ -543,7 +572,7 @@ export const GenerationStep: React.FC = () => {
   useEffect(() => {
     if (!isTelegram) return;
 
-    if (loading) {
+    if (isGenerating) {
       showMainButton('Генерация...', () => {}, false);
       setMainButtonLoading(true);
     } else {
@@ -551,12 +580,12 @@ export const GenerationStep: React.FC = () => {
     }
 
     return () => {
-      if (loading) {
+      if (isGenerating) {
         hideMainButton();
         setMainButtonLoading(false);
       }
     };
-  }, [loading, isTelegram, showMainButton, hideMainButton, setMainButtonLoading]);
+  }, [isTelegram, isGenerating, showMainButton, hideMainButton, setMainButtonLoading]);
 
   // Setup MainButton for error state
   useEffect(() => {
@@ -577,7 +606,7 @@ export const GenerationStep: React.FC = () => {
 
   // Setup MainButton for success state
   useEffect(() => {
-    if (!isTelegram || !result || loading) return;
+    if (!isTelegram || !result || isGenerating) return;
 
     const handleShareDownload = async () => {
       impactOccurred('medium');
@@ -598,13 +627,13 @@ export const GenerationStep: React.FC = () => {
       hideMainButton();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, loading, isTelegram, showMainButton, hideMainButton, impactOccurred]);
+  }, [result, isGenerating, isTelegram, showMainButton, hideMainButton, impactOccurred]);
 
   // Trigger haptic feedback on success
   useEffect(() => {
-    if (!isTelegram || !result || loading) return;
+    if (!isTelegram || !result || isGenerating) return;
     notificationOccurred('success');
-  }, [result, loading, isTelegram, notificationOccurred]);
+  }, [result, isGenerating, isTelegram, notificationOccurred]);
 
   const renderLoader = () => (
     <div className={`flex flex-col items-center justify-center ${isTelegram ? 'min-h-[70vh]' : 'min-h-[60vh]'} animate-fade-in text-center px-4`}>
@@ -632,12 +661,12 @@ export const GenerationStep: React.FC = () => {
     </div>
   );
 
-  if (loading) {
+  if (isGenerating) {
     return renderLoader();
   }
 
   // Если результата ещё нет, но загрузка завершена/не стартовала — показываем лоадер для защиты от пустого экрана
-  if (!result) {
+  if (!result && isGenerating) {
     return renderLoader();
   }
 
@@ -688,7 +717,7 @@ export const GenerationStep: React.FC = () => {
   }
 
   // Final check to prevent rendering empty result
-  if (!getSelectedImageUrl() && !loading) {
+  if (!getSelectedImageUrl() && !isGenerating) {
     return renderLoader();
   }
 

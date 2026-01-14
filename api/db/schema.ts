@@ -118,6 +118,20 @@ export const userTokens = pgTable('user_tokens', {
   userIdUnique: uniqueIndex('user_tokens_user_id_unique').on(table.userId),
 }));
 
+// User uploads table (to persist uploaded photos)
+export const userUploads = pgTable('user_uploads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  url: text('url').notNull(),
+  filePath: text('file_path'), // path in Vercel Blob/R2 for deletion
+  qualityScore: integer('quality_score'),
+  mimeType: varchar('mime_type', { length: 100 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_user_uploads_user_id').on(table.userId),
+  createdAtIdx: index('idx_user_uploads_created_at').on(table.createdAt),
+}));
+
 // Token transactions table
 // Note: Check constraints and partial indexes are handled in migrations
 export const tokenTransactions = pgTable('token_transactions', {
@@ -141,6 +155,14 @@ export const usersRelations = relations(users, ({ many }) => ({
   payments: many(payments),
   tokens: many(userTokens),
   tokenTransactions: many(tokenTransactions),
+  uploads: many(userUploads),
+}));
+
+export const userUploadsRelations = relations(userUploads, ({ one }) => ({
+  user: one(users, {
+    fields: [userUploads.userId],
+    references: [users.id],
+  }),
 }));
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({

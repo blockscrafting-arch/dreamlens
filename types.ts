@@ -58,8 +58,10 @@ export enum ImageQuality {
 }
 
 export interface UserImage {
-  file: File;
+  file?: File;
   previewUrl: string;
+  url?: string; // URL on CDN if uploaded
+  onServer?: boolean; // Flag to indicate it's already on server
   qualityScore: number; // 0 to 100
   feedback?: string; // Specific advice like "Too dark", "Low res"
 }

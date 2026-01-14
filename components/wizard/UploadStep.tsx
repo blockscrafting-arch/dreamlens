@@ -10,6 +10,8 @@ import { Button } from '../ui/Button';
 import { useTelegramMainButton, useTelegramHaptics } from '../../hooks/useTelegram';
 import { isTelegramWebApp } from '../../lib/telegram';
 import { useImageWorker } from '../../hooks/useImageWorker';
+import { useApiRequest } from '../../lib/api';
+import { uploadToCDN } from '../../lib/storage';
 
 export const UploadStep: React.FC = () => {
   const { userImages, addUserImage, removeUserImage, setStep } = useWizard();
@@ -21,6 +23,37 @@ export const UploadStep: React.FC = () => {
   const { show: showMainButton, hide: hideMainButton } = useTelegramMainButton();
   const { impactOccurred } = useTelegramHaptics();
   const { analyzeImage, isAvailable: isWorkerAvailable } = useImageWorker();
+  const apiRequest = useApiRequest();
+
+  // Load existing uploads from server on mount
+  useEffect(() => {
+    const loadUploads = async () => {
+      // Only load if we don't have images in context already
+      if (userImages.length > 0) return;
+
+      try {
+        const response = await apiRequest('/api/user/uploads');
+        if (response.ok) {
+          const data = await response.json();
+          const uploads = data.data?.uploads || [];
+          
+          uploads.forEach((upload: any) => {
+            addUserImage({
+              previewUrl: upload.url,
+              url: upload.url,
+              qualityScore: upload.quality_score || 0,
+              onServer: true,
+              // We don't have the File object for restored images
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error loading uploads:', error);
+      }
+    };
+
+    loadUploads();
+  }, []); // Only once on mount
   
   // Cleanup ObjectURLs when component unmounts or images change
   useEffect(() => {
@@ -75,12 +108,25 @@ export const UploadStep: React.FC = () => {
               const previewUrl = URL.createObjectURL(file);
               const { score, feedback } = await analyzeImageQuality(file);
               
+              // Add to UI immediately with local preview
               addUserImage({ 
                 file, 
                 previewUrl, 
                 qualityScore: score,
                 feedback
               });
+
+              // Background upload to CDN
+              uploadToCDN(file, file.name, score, file.type)
+                .then(url => {
+                  // Find the image in context and update it with URL
+                  // Note: WizardContext state is handled internally, but for simplicity
+                  // we just let the next refresh/reload handle it from DB.
+                  // If we wanted to update it immediately, we'd need a way to find it.
+                  console.log(`Uploaded ${file.name} to ${url}`);
+                })
+                .catch(err => console.error(`Failed to upload ${file.name}:`, err));
+
             } catch (error) {
               console.error("Error processing file:", error);
             } finally {
@@ -105,12 +151,21 @@ export const UploadStep: React.FC = () => {
             // Analysis happens in worker (non-blocking)
             const { score, feedback } = await analyzeImage(file);
             
+            // Add to UI immediately with local preview
             addUserImage({ 
               file, 
               previewUrl, 
               qualityScore: score,
               feedback
             });
+
+            // Background upload to CDN
+            uploadToCDN(file, file.name, score, file.type)
+              .then(url => {
+                console.log(`Uploaded ${file.name} to ${url}`);
+              })
+              .catch(err => console.error(`Failed to upload ${file.name}:`, err));
+
           } catch (error) {
             console.warn("Worker processing failed, falling back to main thread:", error);
             // Fallback to main thread processing
@@ -118,12 +173,21 @@ export const UploadStep: React.FC = () => {
               const previewUrl = URL.createObjectURL(file);
               const { score, feedback } = await analyzeImageQuality(file);
               
+              // Add to UI immediately with local preview
               addUserImage({ 
                 file, 
                 previewUrl, 
                 qualityScore: score,
                 feedback
               });
+
+              // Background upload to CDN
+              uploadToCDN(file, file.name, score, file.type)
+                .then(url => {
+                  console.log(`Uploaded ${file.name} to ${url}`);
+                })
+                .catch(err => console.error(`Failed to upload ${file.name}:`, err));
+
             } catch (fallbackError) {
               console.error("Error processing file (both worker and fallback failed):", fallbackError);
               showToast(`Ошибка при обработке ${file.name}`, 'error');

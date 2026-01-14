@@ -21,6 +21,8 @@ const getTimeUntilMidnight = (): { hours: number; minutes: number; seconds: numb
 // Wheel configuration constants
 const WHEEL_SEGMENTS = 10;
 const SEGMENT_ANGLE = 360 / WHEEL_SEGMENTS;
+// Calibration offset to align visual wheel with actual prize (2 segments = 72deg)
+const CALIBRATION_OFFSET = 2 * SEGMENT_ANGLE;
 const TOKEN_VALUES = [1, 5, 9, 8, 3, 10, 4, 7, 2, 6];
 const WHEEL_COLORS = [
   '#8B5CF6', // purple
@@ -100,6 +102,12 @@ export const DailyWheel: React.FC = () => {
   const isTelegram = isTelegramWebApp();
   const canSpin = tokens?.canClaimBonus ?? false;
 
+  // Simple version log to убедиться, что задеплоена свежая версия колеса
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[DailyWheel] v2-calibrated loaded');
+  }, []);
+
   // Calculate angle from center of wheel to pointer
   const getAngleFromCenter = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current) return 0;
@@ -164,11 +172,11 @@ export const DailyWheel: React.FC = () => {
     }
     
     // Pointer is at top (12 o'clock)
-    // To land on segment i (center at segmentCenterAngle):
-    // Rotation = 360 - segmentCenterAngle
+    // To land on segment i (center at segmentCenterAngle) with calibration:
+    // Rotation = 360 - segmentCenterAngle + CALIBRATION_OFFSET
     
     const segmentCenterAngle = segmentIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
-    const targetAngleOnWheel = 360 - segmentCenterAngle;
+    const targetAngleOnWheel = 360 - segmentCenterAngle + CALIBRATION_OFFSET;
     
     // Add random offset within segment (±15°) so it doesn't always land exactly in center
     const randomOffset = (Math.random() - 0.5) * (SEGMENT_ANGLE * 0.7);
