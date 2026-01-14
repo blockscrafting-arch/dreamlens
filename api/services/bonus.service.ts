@@ -31,11 +31,14 @@ export async function claimDailyBonus(userId: string): Promise<{ success: boolea
     }
 
     // Award random bonus (1-10 tokens) - matching wheel values
+    // Using Math.floor(Math.random() * 10) + 1 gives exactly 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
     const bonusAmount = Math.floor(Math.random() * 10) + 1;
     
-    logger.logApiInfo('BonusService - attempting to claim bonus', {
+    logger.logApiInfo('BonusService - generating daily bonus', {
       userId: userId?.substring(0, 8) + '...',
       bonusAmount,
+      randomRange: '1-10',
+      timestamp: new Date().toISOString(),
     });
 
     // Atomic operation: update balance + add transaction + update date in one query

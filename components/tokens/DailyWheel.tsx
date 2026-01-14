@@ -21,7 +21,7 @@ const getTimeUntilMidnight = (): { hours: number; minutes: number; seconds: numb
 // Wheel configuration constants
 const WHEEL_SEGMENTS = 10;
 const SEGMENT_ANGLE = 360 / WHEEL_SEGMENTS;
-const TOKEN_VALUES = [1, 5, 2, 8, 3, 10, 4, 7, 2, 6];
+const TOKEN_VALUES = [1, 5, 9, 8, 3, 10, 4, 7, 2, 6];
 const WHEEL_COLORS = [
   '#8B5CF6', // purple
   '#EC4899', // pink
@@ -163,14 +163,12 @@ export const DailyWheel: React.FC = () => {
       return calculateTargetRotation(TOKEN_VALUES[closestIndex], baseRotation);
     }
     
-    // Pointer is at top (-90° or 270° from x-axis)
-    // When wheel rotates R degrees, pointer points at (270 - R) mod 360 on the wheel
-    // Segment i occupies from i*36° to (i+1)*36°, center at i*36 + 18°
-    // To land on segment i: 270 - R ≡ i*36 + 18 (mod 360)
-    // So: R ≡ 270 - (i*36 + 18) = 252 - i*36 (mod 360)
+    // Pointer is at top (12 o'clock)
+    // To land on segment i (center at segmentCenterAngle):
+    // Rotation = 360 - segmentCenterAngle
     
     const segmentCenterAngle = segmentIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
-    const targetAngleOnWheel = 270 - segmentCenterAngle;
+    const targetAngleOnWheel = 360 - segmentCenterAngle;
     
     // Add random offset within segment (±15°) so it doesn't always land exactly in center
     const randomOffset = (Math.random() - 0.5) * (SEGMENT_ANGLE * 0.7);
